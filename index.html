@@ -2,15 +2,17 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Portrait RPG - Modulo Juiz</title>
+<title>Portrait RPG - Estilo Ordem</title>
 <style>
-
+  /* LINK DA FOTO DO SEU PERSONAGEM: */
+  /* Troque o link abaixo pelo da sua imagem */
   :root {
-    --char-image: url('https://i.imgur.com/8Q5gq0d.png'); 
+    --char-image: url('https://i.imgur.com/8Q5gq0d.png'); /* Exemplo */
   }
 
-  body { margin: 0; padding: 0; background: transparent; overflow: hidden; font-family: 'Arial Black', Impact, sans-serif; }
+  body { margin: 0; padding: 0; background: transparent; overflow: hidden; font-family: 'Arial Black', 'Arial Bold', Impact, sans-serif; }
 
+  /* Container Principal */
   #portrait-container {
     display: flex;
     align-items: center;
@@ -19,6 +21,7 @@
     position: relative;
   }
 
+  /* Círculo do Personagem */
   #char-circle {
     width: 120px;
     height: 120px;
@@ -29,24 +32,26 @@
     background-position: center;
     position: absolute;
     left: 0;
-    z-index: 10;
-    box-shadow: 3px 0 10px rgba(0,0,0,0.6);
+    z-index: 10; /* Fica na frente das barras */
+    box-shadow: 3px 0 10px rgba(0,0,0,0.5);
   }
 
+  /* Container das Barras */
   #bars-container {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 6px; 
-    margin-left: 70px; 
+    gap: 6px; /* Espaço entre as barras */
+    margin-left: 70px; /* Empurra para a direita do círculo */
     width: 420px;
-    padding: 10px 10px 10px 60px; 
-    background: rgba(0,0,0,0.9);
+    padding: 10px 10px 10px 60px; /* Espaço interno */
+    background: rgba(0,0,0,0.8); /* Fundo escuro atrás das barras */
     border-radius: 0 10px 10px 0;
     border: 2px solid #1a1a1a;
-    border-left: none; 
+    border-left: none; /* Remove a borda da esquerda que fica atrás do círculo */
   }
 
+  /* Estilo Comum das Barras */
   .bar-wrapper {
     width: 100%;
     height: 35px;
@@ -59,16 +64,17 @@
 
   .bar-fill {
     height: 100%;
-    width: 100%;
+    width: 100%; /* Começa cheio */
     position: absolute;
     top: 0; left: 0;
-    transition: width 0.3s ease-out; 
+    transition: width 0.5s ease-out;
   }
 
+  /* Cores das Barras */
+  #hp-bar .bar-fill { background: linear-gradient(90deg, #990000, #ff0000); }
+  #sp-bar .bar-fill { background: linear-gradient(90deg, #000099, #0000ff); }
 
-  #hp-bar .bar-fill { background: linear-gradient(90deg, #800000, #ff0000); }
-  #sp-bar .bar-fill { background: linear-gradient(90deg, #000080, #0055ff); }
-
+  /* Texto sobre as Barras */
   .bar-text {
     position: absolute;
     width: 100%;
@@ -77,23 +83,29 @@
     justify-content: center;
     align-items: center;
     color: white;
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 900;
-    
-    text-shadow: 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+    /* Contorno preto na fonte */
+    text-shadow: 
+       2px  2px 0 #000, -2px  2px 0 #000, 
+      -2px -2px 0 #000,  2px -2px 0 #000,
+       0px  3px 3px rgba(0,0,0,0.8);
     z-index: 5;
   }
 </style>
 </head>
 
 <body>
+
 <div id="portrait-container">
   <div id="char-circle"></div>
+  
   <div id="bars-container">
     <div id="hp-bar" class="bar-wrapper">
       <div class="bar-fill" id="hp-fill"></div>
-      <div class="bar-text" id="hp-text">Carregando...</div>
+      <div class="bar-text" id="hp-text">--/--</div>
     </div>
+    
     <div id="sp-bar" class="bar-wrapper">
       <div class="bar-fill" id="sp-fill"></div>
       <div class="bar-text" id="sp-text">--/--</div>
@@ -102,155 +114,88 @@
 </div>
 
 <script>
+// SEU LINK JÁ CONFIGURADO:
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?gid=1156002832&single=true&output=csv";
 
-const CONFIG = {
-   
-    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?gid=1156002832&single=true&output=csv",
-    
-    
-    termosVida: ["VidaMax", "Vida Max", "Vida", "HP", "PV"],
-    termosDanoVida: ["DanoVida", "Dano", "Ferimento", "Machucado"],
-    
-    termosSanidade: ["SanidadeMax", "Sanidade", "ManaMax", "Mana", "PE", "PM", "San", "Mental"],
-    termosDanoSanidade: ["DanoSanidade", "DanoMana", "Gasto", "DanoMental", "DanoPE"],
-
-  
-    confirmacoesNecessarias: 1 
-};
-
-
-class JuizDeValor {
-    constructor(idTexto, idBarra) {
-        this.elTexto = document.getElementById(idTexto);
-        this.elBarra = document.getElementById(idBarra);
-        
-        
-        this.telaAtual = -1;
-        this.telaMax = -1;
-
-        
-        this.pendenteAtual = -1;
-        this.pendenteMax = -1;
-        
-       
-        this.confianca = 0;
-    }
-
-    julgar(novoAtual, novoMax) {
-       
-        if (novoMax <= 0 || isNaN(novoAtual)) return;
-
-       
-        if (novoAtual === this.telaAtual && novoMax === this.telaMax) {
-            this.confianca = 0; // Relaxa, nada mudou.
-            this.pendenteAtual = -1;
-            return;
-        }
-
-       
-        if (novoAtual === this.pendenteAtual && novoMax === this.pendenteMax) {
-            
-            this.confianca++;
-           
-        } else {
-            this.pendenteAtual = novoAtual;
-            this.pendenteMax = novoMax;
-            this.confianca = 1; 
-           
-        }
-
-        
-        if (this.confianca >= CONFIG.confirmacoesNecessarias) {
-            this.atualizarTela(novoAtual, novoMax);
-            
-          
-            this.telaAtual = novoAtual;
-            this.telaMax = novoMax;
-            
-            this.confianca = 0; 
-            
-        }
-    }
-
-    atualizarTela(atual, max) {
-        const porcentagem = Math.max(0, Math.min(100, (atual / max) * 100));
-        this.elTexto.innerText = `${atual}/${max}`;
-        this.elBarra.style.width = porcentagem + "%";
-    }
-}
-
-
-const juizHP = new JuizDeValor('hp-text', 'hp-fill');
-const juizSP = new JuizDeValor('sp-text', 'sp-fill');
-
-
-
-function lerNumeroNaPlanilha(csv, listaTermos) {
+function encontrarNumero(csv, listaDeNomes) {
   const linhas = csv.split('\n');
-  
+  const nomes = Array.isArray(listaDeNomes) ? listaDeNomes : [listaDeNomes];
   for (const linha of linhas) {
-    const linhaBaixa = linha.toLowerCase();
-    
-  
-    const temTermo = listaTermos.some(termo => linhaBaixa.includes(termo.toLowerCase()));
-
-    if (temTermo) {
-     
+    const linhaLow = linha.toLowerCase();
+    if (nomes.some(nome => linhaLow.includes(nome.toLowerCase()))) {
       const partes = linha.split(/[,;]/);
       for (const p of partes) {
-        
         const limpo = p.replace(/[^0-9.-]/g, '').trim();
-        if (limpo !== "") {
-           const num = Number(limpo);
-           if (!isNaN(num)) return num;
-        }
+        if (limpo === "") continue;
+        const n = Number(limpo);
+        if (!isNaN(n)) return n;
       }
     }
   }
   return null;
 }
 
+// --- SISTEMA DE LISTA NEGRA (ANTI-ROLLBACK) PARA 2 BARRAS ---
+const estado = {
+  hp: { atual: -1, max: -1, ignorado: -1, tempoIgnorar: 0 },
+  sp: { atual: -1, max: -1, ignorado: -1, tempoIgnorar: 0 }
+};
 
-async function cicloDeVida() {
-  try {
+function atualizarBarra(tipo, valorAtual, valorMax) {
+  const s = estado[tipo]; // Pega o estado (hp ou sp)
   
-    const resposta = await fetch(CONFIG.url + "&_=" + Date.now());
+  // Se o valor mudou e não é um fantasma ignorado
+  if (valorAtual !== s.atual) {
+    const ehFantasma = (valorAtual === s.ignorado && Date.now() < s.tempoIgnorar);
     
-    if (resposta.ok) {
-        const dadosCSV = await resposta.text();
-
-       
-        const vidaMax = lerNumeroNaPlanilha(dadosCSV, CONFIG.termosVida);
-        let danoVida = lerNumeroNaPlanilha(dadosCSV, CONFIG.termosDanoVida);
-        if (danoVida === null) danoVida = 0;
-
-     
-        if (vidaMax !== null) {
-            const vidaAtual = Math.max(0, vidaMax - danoVida);
-            juizHP.julgar(vidaAtual, vidaMax);
-        }
-
-       
-        const sanMax = lerNumeroNaPlanilha(dadosCSV, CONFIG.termosSanidade);
-        let danoSan = lerNumeroNaPlanilha(dadosCSV, CONFIG.termosDanoSanidade);
-        if (danoSan === null) danoSan = 0;
-
+    if (!ehFantasma) {
+        // Atualiza a tela
+        const pct = (valorAtual / valorMax) * 100;
+        document.getElementById(`${tipo}-text`).innerText = `${valorAtual}/${valorMax}`;
+        document.getElementById(`${tipo}-fill`).style.width = pct + "%";
         
-        if (sanMax !== null) {
-            const sanAtual = Math.max(0, sanMax - danoSan);
-            juizSP.julgar(sanAtual, sanMax);
-        }
+        // Adiciona o valor antigo na lista negra por 8s
+        s.ignorado = s.atual;
+        s.tempoIgnorar = Date.now() + 8000;
+        s.atual = valorAtual;
+        s.max = valorMax;
     }
-  } catch (erro) {
-      console.error("Erro na leitura:", erro);
-  } finally {
-     
-      setTimeout(cicloDeVida, 1000);
+  } else if (valorMax !== s.max) {
+      // Se só a vida máxima mudou (raro, mas acontece)
+      const pct = (valorAtual / valorMax) * 100;
+      document.getElementById(`${tipo}-text`).innerText = `${valorAtual}/${valorMax}`;
+      document.getElementById(`${tipo}-fill`).style.width = pct + "%";
+      s.max = valorMax;
   }
 }
 
+async function loopPrincipal() {
+  try {
+    const res = await fetch(SHEET_URL + "&_=" + Date.now());
+    if (res.ok) {
+      const csv = await res.text();
 
-cicloDeVida();
+      // --- BUSCA VIDA ---
+      const vidaMax = encontrarNumero(csv, ["VidaMax", "Vida Max", "Vida", "HP"]);
+      let dano = encontrarNumero(csv, ["DanoVida", "Dano", "Ferimento"]);
+      if (dano === null) dano = 0;
+      if (vidaMax !== null) {
+          atualizarBarra('hp', Math.max(0, vidaMax - dano), vidaMax);
+      }
+
+      // --- BUSCA SANIDADE/PE ---
+      const sanMax = encontrarNumero(csv, ["SanidadeMax", "Sanidade", "ManaMax", "Mana", "PE", "Pontos"]);
+      let danoSan = encontrarNumero(csv, ["DanoSanidade", "DanoMana", "Gasto"]);
+      if (danoSan === null) danoSan = 0;
+      if (sanMax !== null) {
+          atualizarBarra('sp', Math.max(0, sanMax - danoSan), sanMax);
+      }
+    }
+  } catch (e) { console.error(e); } 
+  finally { setTimeout(loopPrincipal, 1000); } // Repete a cada 1s
+}
+
+loopPrincipal();
 </script>
 </body>
 </html>
