@@ -53,17 +53,29 @@ body {
 const SHEET_URL =
 "https://docs.google.com/spreadsheets/d/e/1DkjeX4GXPg-bCUa-QfDJaeaO72Gi_6LPtvAn9r_ced8/pub?output=csv";
 
+function extrairValor(csv, chave) {
+  const linhas = csv.split('\n');
+  for (const linha of linhas) {
+    const colunas = linha.split(',');
+    if (colunas[0]?.trim() === chave) {
+      return Number(colunas[1]);
+    }
+  }
+  return null;
+}
+
 async function atualizarVida() {
   try {
     const res = await fetch(SHEET_URL + "&_=" + Date.now());
     const csv = await res.text();
-    const linhas = csv.split('\n');
 
-    // Linha 1 = VidaMax | Linha 2 = Dano
-    const vidaMax = Number(linhas[1].split(',')[1]);
-    const dano = Number(linhas[2].split(',')[1]);
+    const vidaMax = extrairValor(csv, "VidaMax");
+    const dano = extrairValor(csv, "Dano");
 
-    if (!vidaMax || vidaMax <= 0) return;
+    if (vidaMax === null || dano === null || vidaMax <= 0) {
+      console.warn("Valores não encontrados no CSV");
+      return;
+    }
 
     const atual = Math.max(0, vidaMax - dano);
     const pct = (atual / vidaMax) * 100;
