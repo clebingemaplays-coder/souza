@@ -18,10 +18,10 @@
   #container {
     width: 320px; /* Largura da barra */
     padding: 10px;
-    background: rgba(0, 0, 0, 0.85); /* Fundo escuro semi-transparente */
-    border: 2px solid #b00000; /* Borda vermelha escura */
+    background: rgba(0, 0, 0, 0.85); /* Fundo escuro */
+    border: 2px solid #b00000; /* Borda vermelha */
     border-radius: 8px; /* Cantos arredondados */
-    box-shadow: 0 4px 6px rgba(0,0,0,0.5); /* Sombra suave atrás */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
   }
 
   /* Texto da Vida */
@@ -32,7 +32,7 @@
     margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    text-shadow: 2px 2px 0px #000; /* Sombra no texto para leitura fácil */
+    text-shadow: 2px 2px 0px #000;
   }
 
   /* Fundo da Barra (Cinza escuro) */
@@ -42,17 +42,17 @@
     background: #2a2a2a;
     border: 2px solid #111;
     border-radius: 4px;
-    overflow: hidden; /* Garante que a barra vermelha não vaze */
+    overflow: hidden;
     position: relative;
   }
 
   /* A Barra Vermelha (Vida) */
   #barra-vida {
     height: 100%;
-    width: 100%; /* Começa cheia */
-    background: linear-gradient(180deg, #ff4444 0%, #cc0000 100%); /* Gradiente bonito */
-    box-shadow: inset 0 0 5px rgba(0,0,0,0.5); /* Sombra interna para profundidade */
-    transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1); /* Animação suave */
+    width: 100%;
+    background: linear-gradient(180deg, #ff4444 0%, #cc0000 100%);
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+    transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1);
   }
 </style>
 </head>
@@ -64,11 +64,11 @@
   <div id="barra-bg">
     <div id="barra-vida"></div>
   </div>
-</div>
+  </div>
 
 <script>
 // ======================================================
-// COLE O SEU LINK DA PLANILHA AQUI EMBAIXO (DENTRO DAS ASPAS):
+// COLE O SEU LINK DA PLANILHA AQUI EMBAIXO:
 const SHEET_URL = "SEU_LINK_AQUI"; 
 // ======================================================
 
@@ -78,11 +78,9 @@ function encontrarNumero(csv, listaDeNomes) {
 
   for (const linha of linhas) {
     const linhaLow = linha.toLowerCase();
-    // Verifica se a linha tem algum dos nomes (Vida, HP, VidaMax, etc)
     if (nomes.some(nome => linhaLow.includes(nome.toLowerCase()))) {
       const partes = linha.split(/[,;]/);
       for (const p of partes) {
-        // Limpa texto para pegar apenas numeros
         const limpo = p.replace(/[^0-9.-]/g, '').trim();
         if (limpo === "") continue;
         const n = Number(limpo);
@@ -96,35 +94,12 @@ function encontrarNumero(csv, listaDeNomes) {
 async function atualizarVida() {
   try {
     const res = await fetch(SHEET_URL + "&_=" + Date.now());
-    if (!res.ok) return; // Se der erro silencioso, apenas ignora
+    if (!res.ok) return; 
     
     const csv = await res.text();
 
-    // Busca inteligente: Procura por VidaMax, Vida, HP, etc.
     const vidaMax = encontrarNumero(csv, ["VidaMax", "Vida Max", "Vida", "HP", "Total"]);
-    
-    // Busca inteligente: Procura por Dano, Ferimento, etc.
     let dano = encontrarNumero(csv, ["Dano", "Ferimento", "Machucado"]);
 
-    if (vidaMax === null) return; // Se não achar vida, mantém como está
-    if (dano === null) dano = 0;  // Se não achar dano, considera 0
-
-    // Cálculos
-    const atual = Math.max(0, vidaMax - dano);
-    const pct = (atual / vidaMax) * 100;
-
-    // Atualiza a tela
-    document.getElementById("vida-texto").innerText = `VIDA: ${atual} / ${vidaMax}`;
-    document.getElementById("barra-vida").style.width = pct + "%";
-
-  } catch (e) {
-    console.error(e); // Erros aparecem só no console do programador (F12), não na tela
-  }
-}
-
-// Atualiza a cada 3 segundos
-setInterval(atualizarVida, 3000);
-atualizarVida();
-</script>
-</body>
-</html>
+    if (vidaMax === null) return; 
+    if (dano === null) dano =
