@@ -2,17 +2,22 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Portrait RPG</title>
+<title>Portrait RPG Debug</title>
 <style>
-  body { margin: 0; background: transparent; font-family: Arial, sans-serif; color: white; overflow: hidden; }
+  body { 
+    margin: 0; 
+    background: transparent; 
+    font-family: Arial, sans-serif; 
+    color: white; 
+    overflow: hidden; 
+  }
   
   #container {
     width: 320px;
     padding: 10px;
-    background: rgba(0,0,0,0.8); /* Um pouco mais escuro para leitura */
+    background: rgba(0,0,0,0.85);
     border: 2px solid #b00000;
-    border-radius: 5px; /* Borda arredondada visualmente melhor */
-    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    border-radius: 5px;
   }
 
   #vida-texto {
@@ -29,29 +34,49 @@
     background: #333;
     border: 2px solid #111;
     border-radius: 3px;
-    overflow: hidden; /* Garante que a barra interna não vase */
+    overflow: hidden;
+    position: relative;
   }
 
   #barra-vida {
     height: 100%;
-    width: 0%; /* Começa zerado */
-    background: linear-gradient(90deg, #ff0000, #ff4444); /* Gradiente para efeito bonito */
-    transition: width 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+    width: 0%;
+    background: linear-gradient(90deg, #ff0000, #ff4444);
+    transition: width 0.5s ease;
+  }
+
+  /* Área de mensagens de erro para debug */
+  #debug-log {
+    margin-top: 5px;
+    font-size: 10px;
+    color: #ffff00;
+    font-family: monospace;
+    white-space: pre-wrap;
+    background: rgba(0,0,0,0.5);
+    padding: 2px;
   }
 </style>
 </head>
 
 <body>
 <div id="container">
-  <div id="vida-texto">Carregando...</div>
+  <div id="vida-texto">Iniciando...</div>
   <div id="barra-bg">
     <div id="barra-vida"></div>
   </div>
+  <div id="debug-log">Log de sistema...</div>
 </div>
 
 <script>
-// COLE O SEU LINK DA PLANILHA AQUI DENTRO DAS ASPAS
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pubhtml";
+// SEU LINK DA PLANILHA
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/1DkjeX4GXPg-bCUa-QfDJaeaO72Gi_6LPtvAn9r_ced8/pub?output=csv";
+
+// Função para escrever na telinha amarela de debug
+function log(msg) {
+  const logEl = document.getElementById("debug-log");
+  logEl.innerText = msg;
+  console.log(msg);
+}
 
 function encontrarNumero(csv, palavraChave) {
   const linhas = csv.split('\n');
@@ -59,11 +84,15 @@ function encontrarNumero(csv, palavraChave) {
 
   for (const linha of linhas) {
     if (linha.toLowerCase().includes(termo)) {
+      // Divide por vírgula ou ponto e vírgula
       const partes = linha.split(/[,;]/);
       for (const p of partes) {
-        const limpo = p.replace(/["'%\r]/g, '').trim();
+        // Remove tudo que não for numero ou ponto
+        const limpo = p.replace(/[^0-9.-]/g, '').trim();
+        if (limpo === "") continue;
+        
         const n = Number(limpo);
-        if (!isNaN(n) && limpo !== "") return n;
+        if (!isNaN(n)) return n;
       }
     }
   }
@@ -74,43 +103,49 @@ async function atualizarVida() {
   const textoElement = document.getElementById("vida-texto");
   
   try {
-    // Tenta baixar a planilha
+    log("Tentando baixar CSV...");
+    
+    // O fetch pode falhar aqui se for bloqueado pelo navegador
     const res = await fetch(SHEET_URL + "&_=" + Date.now());
     
-    // Se o Google retornou erro (ex: 404 não encontrado)
-    if (!res.ok) {
-      throw new Error(`Erro Google: ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
     
+    log("CSV baixado. Lendo...");
     const csv = await res.text();
     
-    // Tenta achar os valores
-    const vidaMax = encontrarNumero(csv, "VidaMax"); // Confirme se na planilha está escrito VidaMax
-    const dano = encontrarNumero(csv, "Dano");       // Confirme se na planilha está escrito Dano
+    // Verifica o conteúdo bruto (primeiros 50 caracteres)
+    log(`CSV Lido: ${csv.substring(0, 30)}...`);
 
-    if (vidaMax === null) throw new Error("Não achei 'VidaMax'");
-    if (dano === null) throw new Error("Não achei 'Dano'");
+    const vidaMax = encontrarNumero(csv, "VidaMax");
+    const dano = encontrarNumero(csv, "Dano");
 
-    // Calcula e atualiza
-    const atual = Math.max(0, vidaMax - dano);
+    if (vidaMax === null) throw new Error("Não achei 'VidaMax' na planilha");
+    // Se não achar dano, assume 0
+    const danoFinal = dano === null ? 0 : dano;
+
+    const atual = Math.max(0, vidaMax - danoFinal);
     const pct = (atual / vidaMax) * 100;
 
     textoElement.innerText = `Vida: ${atual} / ${vidaMax}`;
     document.getElementById("barra-vida").style.width = pct + "%";
+    
+    log("Atualizado com sucesso!");
+    // Limpa o log depois de 2 segundos se deu tudo certo
+    setTimeout(() => { document.getElementById("debug-log").innerText = "OK"; }, 2000);
 
   } catch (e) {
-    console.error(e);
-    // Mostra o erro real na tela para podermos consertar
-    textoElement.innerText = e.message; 
-    textoElement.style.fontSize = "12px"; // Diminui fonte para caber o erro
-    textoElement.style.color = "yellow";
+    // Aqui mostra o erro exato na tela
+    log("ERRO: " + e.message);
+    
+    if (e.message.includes("Failed to fetch")) {
+      log("BLOQUEIO DE NAVEGADOR.\nTeste dentro do OBS.");
+    }
   }
 }
 
-setInterval(atualizarVida, 2000);
+// Inicia o loop
+setInterval(atualizarVida, 3000);
 atualizarVida();
 </script>
 </body>
 </html>
-
-
