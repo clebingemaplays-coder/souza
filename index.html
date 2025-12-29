@@ -64,12 +64,13 @@
   <div id="barra-bg">
     <div id="barra-vida"></div>
   </div>
-  </div>
+</div>
 
 <script>
 // ======================================================
 // COLE O SEU LINK DA PLANILHA AQUI EMBAIXO:
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?output=csv"; 
+// O link deve ficar DENTRO das aspas ""
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?gid=1156002832&single=true&output=csv"; 
 // ======================================================
 
 function encontrarNumero(csv, listaDeNomes) {
@@ -92,15 +93,46 @@ function encontrarNumero(csv, listaDeNomes) {
 }
 
 async function atualizarVida() {
+  // Verifica se você esqueceu de colocar o link
+  if (SHEET_URL === "COLE_SEU_LINK_AQUI" || SHEET_URL === "") {
+     document.getElementById("vida-texto").innerText = "FALTA O LINK!";
+     return;
+  }
+
   try {
     const res = await fetch(SHEET_URL + "&_=" + Date.now());
-    if (!res.ok) return; 
+    if (!res.ok) {
+        // Se der erro de conexão, avisa discretamente
+        document.getElementById("vida-texto").innerText = "Erro Conexão";
+        return; 
+    }
     
     const csv = await res.text();
 
     const vidaMax = encontrarNumero(csv, ["VidaMax", "Vida Max", "Vida", "HP", "Total"]);
     let dano = encontrarNumero(csv, ["Dano", "Ferimento", "Machucado"]);
 
-    if (vidaMax === null) return; 
-    if (dano === null) dano =
+    if (vidaMax === null) {
+        // Se não achou 'Vida' na planilha
+        document.getElementById("vida-texto").innerText = "Erro Planilha";
+        return; 
+    }
+    
+    if (dano === null) dano = 0;
 
+    const atual = Math.max(0, vidaMax - dano);
+    const pct = (atual / vidaMax) * 100;
+
+    document.getElementById("vida-texto").innerText = `VIDA: ${atual} / ${vidaMax}`;
+    document.getElementById("barra-vida").style.width = pct + "%";
+
+  } catch (e) {
+    console.error(e); 
+  }
+}
+
+setInterval(atualizarVida, 3000);
+atualizarVida();
+</script>
+</body>
+</html>
