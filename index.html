@@ -6,7 +6,7 @@
 <style>
 
   :root {
-    --char-image: url: "https://docs.google.com/spreadsheets/d/1DkjeX4GXPg-bCUa-QfDJaeaO72Gi_6LPtvAn9r_ced8/gviz/tq?tqx=out:csv&gid=1156002832",
+    --char-image: url('https://i.imgur.com/8Q5gq0d.png'); 
   }
 
   body { margin: 0; padding: 0; background: transparent; overflow: hidden; font-family: 'Arial Black', Impact, sans-serif; }
@@ -114,10 +114,8 @@ const CONFIG = {
     termosSanidade: ["SanidadeMax", "Sanidade", "ManaMax", "Mana", "PE", "PM", "San", "Mental"],
     termosDanoSanidade: ["DanoSanidade", "DanoMana", "Gasto", "DanoMental", "DanoPE"],
 
-    termosImagem: ["Portrait", "Imagem", "Foto", "Avatar"],
-
   
-    confirmacoesNecessarias: 1
+    confirmacoesNecessarias: 1 
 };
 
 
@@ -187,23 +185,7 @@ const juizSP = new JuizDeValor('sp-text', 'sp-fill');
 
 
 
-function lerTextoNaPlanilha(csv, listaTermos) {
-  const linhas = csv.split('\n');
-
-  for (const linha of linhas) {
-    const limpa = linha.replace(/"/g, '');
-    const baixa = limpa.toLowerCase();
-
-    if (listaTermos.some(t => baixa.includes(t.toLowerCase()))) {
-      const partes = limpa.split(/[,;]/);
-      for (const p of partes) {
-        if (p.includes("http")) return p.trim();
-      }
-    }
-  }
-  return null;
-}
-
+function lerNumeroNaPlanilha(csv, listaTermos) {
   const linhas = csv.split('\n');
   
   for (const linha of linhas) {
@@ -226,7 +208,7 @@ function lerTextoNaPlanilha(csv, listaTermos) {
     }
   }
   return null;
-
+}
 
 
 async function cicloDeVida() {
@@ -258,19 +240,12 @@ async function cicloDeVida() {
             const sanAtual = Math.max(0, sanMax - danoSan);
             juizSP.julgar(sanAtual, sanMax);
         }
-
-        // 🖼️ isso atualiza automatico, gay
-const novaImagem = lerTextoNaPlanilha(dadosCSV, CONFIG.termosImagem);
-if (novaImagem) {
-  document.documentElement.style.setProperty('--char-image', `url('${novaImagem}')`);
-}
-
     }
   } catch (erro) {
       console.error("Erro na leitura:", erro);
   } finally {
      
-      setTimeout(cicloDeVida, 400);
+      setTimeout(cicloDeVida, 1000);
   }
 }
 
