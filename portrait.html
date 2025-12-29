@@ -53,12 +53,18 @@ body {
 const SHEET_URL =
 "https://docs.google.com/spreadsheets/d/e/1DkjeX4GXPg-bCUa-QfDJaeaO72Gi_6LPtvAn9r_ced8/pub?output=csv";
 
-function extrairValor(csv, chave) {
+function encontrarNumero(csv, palavra) {
   const linhas = csv.split('\n');
+
   for (const linha of linhas) {
-    const colunas = linha.split(',');
-    if (colunas[0]?.trim() === chave) {
-      return Number(colunas[1]);
+    if (linha.includes(palavra)) {
+      const partes = linha.split(',');
+      for (const p of partes) {
+        const n = Number(p.replace('%','').trim());
+        if (!isNaN(n)) {
+          return n;
+        }
+      }
     }
   }
   return null;
@@ -69,13 +75,10 @@ async function atualizarVida() {
     const res = await fetch(SHEET_URL + "&_=" + Date.now());
     const csv = await res.text();
 
-    const vidaMax = extrairValor(csv, "VidaMax");
-    const dano = extrairValor(csv, "Dano");
+    const vidaMax = encontrarNumero(csv, "VidaMax");
+    const dano = encontrarNumero(csv, "Dano");
 
-    if (vidaMax === null || dano === null || vidaMax <= 0) {
-      console.warn("Valores não encontrados no CSV");
-      return;
-    }
+    if (vidaMax === null || dano === null || vidaMax <= 0) return;
 
     const atual = Math.max(0, vidaMax - dano);
     const pct = (atual / vidaMax) * 100;
@@ -87,7 +90,7 @@ async function atualizarVida() {
       pct + "%";
 
   } catch (e) {
-    console.error("Erro ao atualizar vida:", e);
+    console.error("Erro:", e);
   }
 }
 
