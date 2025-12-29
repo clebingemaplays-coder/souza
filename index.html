@@ -2,12 +2,12 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Portrait RPG - Estilo Ordem</title>
+<title>Portrait RPG - Estável</title>
 <style>
-  /* LINK DA FOTO DO SEU PERSONAGEM: */
-  /* Troque o link abaixo pelo da sua imagem */
+  /* === CONFIGURAÇÃO DA IMAGEM === */
+  /* Coloque o link da sua imagem aqui dentro dos parênteses: */
   :root {
-    --char-image: url('https://i.imgur.com/8Q5gq0d.png'); /* Exemplo */
+    --char-image: url('https://i.imgur.com/8Q5gq0d.png'); 
   }
 
   body { margin: 0; padding: 0; background: transparent; overflow: hidden; font-family: 'Arial Black', 'Arial Bold', Impact, sans-serif; }
@@ -32,7 +32,7 @@
     background-position: center;
     position: absolute;
     left: 0;
-    z-index: 10; /* Fica na frente das barras */
+    z-index: 10;
     box-shadow: 3px 0 10px rgba(0,0,0,0.5);
   }
 
@@ -41,17 +41,17 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 6px; /* Espaço entre as barras */
-    margin-left: 70px; /* Empurra para a direita do círculo */
+    gap: 6px; 
+    margin-left: 70px; 
     width: 420px;
-    padding: 10px 10px 10px 60px; /* Espaço interno */
-    background: rgba(0,0,0,0.8); /* Fundo escuro atrás das barras */
+    padding: 10px 10px 10px 60px; 
+    background: rgba(0,0,0,0.8);
     border-radius: 0 10px 10px 0;
     border: 2px solid #1a1a1a;
-    border-left: none; /* Remove a borda da esquerda que fica atrás do círculo */
+    border-left: none; 
   }
 
-  /* Estilo Comum das Barras */
+  /* Estilo das Barras */
   .bar-wrapper {
     width: 100%;
     height: 35px;
@@ -64,17 +64,15 @@
 
   .bar-fill {
     height: 100%;
-    width: 100%; /* Começa cheio */
+    width: 100%;
     position: absolute;
     top: 0; left: 0;
-    transition: width 0.5s ease-out;
+    transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
   }
 
-  /* Cores das Barras */
   #hp-bar .bar-fill { background: linear-gradient(90deg, #990000, #ff0000); }
   #sp-bar .bar-fill { background: linear-gradient(90deg, #000099, #0000ff); }
 
-  /* Texto sobre as Barras */
   .bar-text {
     position: absolute;
     width: 100%;
@@ -85,7 +83,6 @@
     color: white;
     font-size: 22px;
     font-weight: 900;
-    /* Contorno preto na fonte */
     text-shadow: 
        2px  2px 0 #000, -2px  2px 0 #000, 
       -2px -2px 0 #000,  2px -2px 0 #000,
@@ -105,7 +102,6 @@
       <div class="bar-fill" id="hp-fill"></div>
       <div class="bar-text" id="hp-text">--/--</div>
     </div>
-    
     <div id="sp-bar" class="bar-wrapper">
       <div class="bar-fill" id="sp-fill"></div>
       <div class="bar-text" id="sp-text">--/--</div>
@@ -114,8 +110,63 @@
 </div>
 
 <script>
-// SEU LINK JÁ CONFIGURADO:
+// SEU LINK DA PLANILHA:
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?gid=1156002832&single=true&output=csv";
+
+// CLASSE DE ESTABILIDADE (Filtra os fantasmas)
+class Estabilizador {
+    constructor() {
+        this.historico = [];
+        this.tamanhoBuffer = 5; // Olha as ultimas 5 leituras
+    }
+
+    adicionar(valor) {
+        // Se vier valor inválido, ignora
+        if (valor === null || isNaN(valor)) return;
+
+        this.historico.push(valor);
+        // Mantém apenas os ultimos X
+        if (this.historico.length > this.tamanhoBuffer) {
+            this.historico.shift();
+        }
+    }
+
+    obterValorConsenso() {
+        // Se não tiver dados suficientes ainda, retorna nulo
+        if (this.historico.length < 3) return null;
+
+        // Conta quantas vezes cada valor apareceu
+        const contagem = {};
+        let maxAparicoes = 0;
+        let valorVencedor = null;
+
+        for (const v of this.historico) {
+            contagem[v] = (contagem[v] || 0) + 1;
+            if (contagem[v] > maxAparicoes) {
+                maxAparicoes = contagem[v];
+                valorVencedor = v;
+            }
+        }
+
+        // SÓ ACEITA MUDAR SE:
+        // O valor vencedor apareceu em pelo menos 4 das ultimas 5 leituras (80% de certeza)
+        if (maxAparicoes >= 4) {
+            return Number(valorVencedor);
+        }
+        
+        return null; // Sem consenso (está piscando), mantém o anterior
+    }
+}
+
+// Criar estabilizadores para Vida e Sanidade
+const estabilizadorHP = new Estabilizador();
+const estabilizadorSP = new Estabilizador();
+const estabilizadorMaxHP = new Estabilizador();
+const estabilizadorMaxSP = new Estabilizador();
+
+// Variaveis de tela atuais
+let telaHP = -1; let telaMaxHP = -1;
+let telaSP = -1; let telaMaxSP = -1;
 
 function encontrarNumero(csv, listaDeNomes) {
   const linhas = csv.split('\n');
@@ -135,38 +186,14 @@ function encontrarNumero(csv, listaDeNomes) {
   return null;
 }
 
-// --- SISTEMA DE LISTA NEGRA (ANTI-ROLLBACK) PARA 2 BARRAS ---
-const estado = {
-  hp: { atual: -1, max: -1, ignorado: -1, tempoIgnorar: 0 },
-  sp: { atual: -1, max: -1, ignorado: -1, tempoIgnorar: 0 }
-};
-
-function atualizarBarra(tipo, valorAtual, valorMax) {
-  const s = estado[tipo]; // Pega o estado (hp ou sp)
-  
-  // Se o valor mudou e não é um fantasma ignorado
-  if (valorAtual !== s.atual) {
-    const ehFantasma = (valorAtual === s.ignorado && Date.now() < s.tempoIgnorar);
+function atualizarTela(tipo, atual, max) {
+    const idText = tipo === 'hp' ? 'hp-text' : 'sp-text';
+    const idFill = tipo === 'hp' ? 'hp-fill' : 'sp-fill';
     
-    if (!ehFantasma) {
-        // Atualiza a tela
-        const pct = (valorAtual / valorMax) * 100;
-        document.getElementById(`${tipo}-text`).innerText = `${valorAtual}/${valorMax}`;
-        document.getElementById(`${tipo}-fill`).style.width = pct + "%";
-        
-        // Adiciona o valor antigo na lista negra por 8s
-        s.ignorado = s.atual;
-        s.tempoIgnorar = Date.now() + 8000;
-        s.atual = valorAtual;
-        s.max = valorMax;
-    }
-  } else if (valorMax !== s.max) {
-      // Se só a vida máxima mudou (raro, mas acontece)
-      const pct = (valorAtual / valorMax) * 100;
-      document.getElementById(`${tipo}-text`).innerText = `${valorAtual}/${valorMax}`;
-      document.getElementById(`${tipo}-fill`).style.width = pct + "%";
-      s.max = valorMax;
-  }
+    // Atualiza texto e barra
+    const pct = Math.max(0, Math.min(100, (atual / max) * 100));
+    document.getElementById(idText).innerText = `${atual}/${max}`;
+    document.getElementById(idFill).style.width = pct + "%";
 }
 
 async function loopPrincipal() {
@@ -175,24 +202,61 @@ async function loopPrincipal() {
     if (res.ok) {
       const csv = await res.text();
 
-      // --- BUSCA VIDA ---
-      const vidaMax = encontrarNumero(csv, ["VidaMax", "Vida Max", "Vida", "HP"]);
-      let dano = encontrarNumero(csv, ["DanoVida", "Dano", "Ferimento"]);
-      if (dano === null) dano = 0;
-      if (vidaMax !== null) {
-          atualizarBarra('hp', Math.max(0, vidaMax - dano), vidaMax);
+      // --- LER DADOS BRUTOS ---
+      const vidaMaxRaw = encontrarNumero(csv, ["VidaMax", "Vida Max", "Vida", "HP"]);
+      let danoHP = encontrarNumero(csv, ["DanoVida", "Dano", "Ferimento"]);
+      if (danoHP === null) danoHP = 0;
+      
+      const sanMaxRaw = encontrarNumero(csv, ["SanidadeMax", "Sanidade", "ManaMax", "Mana", "PE"]);
+      let danoSP = encontrarNumero(csv, ["DanoSanidade", "DanoMana", "Gasto"]);
+      if (danoSP === null) danoSP = 0;
+
+      // --- PROCESSAR VIDA ---
+      if (vidaMaxRaw !== null) {
+          const vidaAtualRaw = Math.max(0, vidaMaxRaw - danoHP);
+          
+          // Joga no estabilizador
+          estabilizadorHP.adicionar(vidaAtualRaw);
+          estabilizadorMaxHP.adicionar(vidaMaxRaw);
+
+          // Pede o consenso
+          const hpConfiavel = estabilizadorHP.obterValorConsenso();
+          const maxHpConfiavel = estabilizadorMaxHP.obterValorConsenso();
+
+          // Se tem um valor confiável E ele é diferente da tela, atualiza
+          if (hpConfiavel !== null && maxHpConfiavel !== null) {
+              if (hpConfiavel !== telaHP || maxHpConfiavel !== telaMaxHP) {
+                  atualizarTela('hp', hpConfiavel, maxHpConfiavel);
+                  telaHP = hpConfiavel;
+                  telaMaxHP = maxHpConfiavel;
+              }
+          }
       }
 
-      // --- BUSCA SANIDADE/PE ---
-      const sanMax = encontrarNumero(csv, ["SanidadeMax", "Sanidade", "ManaMax", "Mana", "PE", "Pontos"]);
-      let danoSan = encontrarNumero(csv, ["DanoSanidade", "DanoMana", "Gasto"]);
-      if (danoSan === null) danoSan = 0;
-      if (sanMax !== null) {
-          atualizarBarra('sp', Math.max(0, sanMax - danoSan), sanMax);
+      // --- PROCESSAR SANIDADE ---
+      if (sanMaxRaw !== null) {
+          const sanAtualRaw = Math.max(0, sanMaxRaw - danoSP);
+          
+          estabilizadorSP.adicionar(sanAtualRaw);
+          estabilizadorMaxSP.adicionar(sanMaxRaw);
+
+          const spConfiavel = estabilizadorSP.obterValorConsenso();
+          const maxSpConfiavel = estabilizadorMaxSP.obterValorConsenso();
+
+          if (spConfiavel !== null && maxSpConfiavel !== null) {
+              if (spConfiavel !== telaSP || maxSpConfiavel !== telaMaxSP) {
+                  atualizarTela('sp', spConfiavel, maxSpConfiavel);
+                  telaSP = spConfiavel;
+                  telaMaxSP = maxSpConfiavel;
+              }
+          }
       }
     }
   } catch (e) { console.error(e); } 
-  finally { setTimeout(loopPrincipal, 1000); } // Repete a cada 1s
+  finally { 
+    // Repete a cada 400ms (A estabilidade de 5 frames leva ~2s)
+    setTimeout(loopPrincipal, 400); 
+  }
 }
 
 loopPrincipal();
