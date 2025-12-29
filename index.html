@@ -50,30 +50,20 @@
 </div>
 
 <script>
-// URL da sua planilha
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?output=csv";
+// COLE O SEU LINK DA PLANILHA AQUI DENTRO DAS ASPAS
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pubhtml";
 
-// Função de busca melhorada
 function encontrarNumero(csv, palavraChave) {
   const linhas = csv.split('\n');
-  const termo = palavraChave.toLowerCase(); // Ignorar maiúsculas/minúsculas na busca
+  const termo = palavraChave.toLowerCase(); 
 
   for (const linha of linhas) {
-    // Se a linha contiver a palavra chave
     if (linha.toLowerCase().includes(termo)) {
-      // Divide por vírgula OU ponto e vírgula (regex)
       const partes = linha.split(/[,;]/);
-      
       for (const p of partes) {
-        // Limpa aspas, espaços e % para pegar apenas o número
         const limpo = p.replace(/["'%\r]/g, '').trim();
         const n = Number(limpo);
-
-        // Verifica se é um número válido E não é a própria palavra chave (para não pegar o "Vida" como 0)
-        // Também ignoramos zeros se for exatamente a palavra chave, mas aceitamos 0 como valor
-        if (!isNaN(n) && limpo !== "") {
-           return n;
-        }
+        if (!isNaN(n) && limpo !== "") return n;
       }
     }
   }
@@ -81,44 +71,46 @@ function encontrarNumero(csv, palavraChave) {
 }
 
 async function atualizarVida() {
+  const textoElement = document.getElementById("vida-texto");
+  
   try {
-    // Adiciona timestamp para evitar cache do navegador
+    // Tenta baixar a planilha
     const res = await fetch(SHEET_URL + "&_=" + Date.now());
     
-    if (!res.ok) throw new Error("Falha ao baixar CSV");
+    // Se o Google retornou erro (ex: 404 não encontrado)
+    if (!res.ok) {
+      throw new Error(`Erro Google: ${res.status}`);
+    }
     
     const csv = await res.text();
     
-    // Debug: Mostra o CSV no console do navegador (F12) para checar se baixou
-    // console.log("CSV Baixado:", csv); 
+    // Tenta achar os valores
+    const vidaMax = encontrarNumero(csv, "VidaMax"); // Confirme se na planilha está escrito VidaMax
+    const dano = encontrarNumero(csv, "Dano");       // Confirme se na planilha está escrito Dano
 
-    // Busca os valores. ATENÇÃO: Os nomes aqui devem ser parte do que está escrito na planilha
-    const vidaMax = encontrarNumero(csv, "VidaMax");
-    const dano = encontrarNumero(csv, "Dano");
+    if (vidaMax === null) throw new Error("Não achei 'VidaMax'");
+    if (dano === null) throw new Error("Não achei 'Dano'");
 
-    // Se não achou os números, avisa no console e não atualiza
-    if (vidaMax === null || dano === null) {
-      console.warn("Não encontrei 'VidaMax' ou 'Dano' no CSV. Verifique a planilha.");
-      return;
-    }
-
+    // Calcula e atualiza
     const atual = Math.max(0, vidaMax - dano);
     const pct = (atual / vidaMax) * 100;
 
-    // Atualiza a interface
-    document.getElementById("vida-texto").innerText = `Vida: ${atual} / ${vidaMax}`;
+    textoElement.innerText = `Vida: ${atual} / ${vidaMax}`;
     document.getElementById("barra-vida").style.width = pct + "%";
 
   } catch (e) {
-    console.error("Erro no script:", e);
-    document.getElementById("vida-texto").innerText = "Erro Conexão";
+    console.error(e);
+    // Mostra o erro real na tela para podermos consertar
+    textoElement.innerText = e.message; 
+    textoElement.style.fontSize = "12px"; // Diminui fonte para caber o erro
+    textoElement.style.color = "yellow";
   }
 }
 
-// Atualiza a cada 2 segundos (menos agressivo que 1s)
 setInterval(atualizarVida, 2000);
 atualizarVida();
 </script>
 </body>
 </html>
+
 
