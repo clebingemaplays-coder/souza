@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Portrait RPG</title>
+
+<style>
+body {
+  margin: 0;
+  background: transparent;
+  font-family: Arial, sans-serif;
+  color: white;
+}
+
+#container {
+  width: 320px;
+  padding: 10px;
+  background: rgba(0,0,0,0.75);
+  border: 2px solid #b00000;
+}
+
+#vida-texto {
+  text-align: center;
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+#barra-bg {
+  width: 100%;
+  height: 22px;
+  background: #222;
+  border: 1px solid #555;
+}
+
+#barra-vida {
+  height: 100%;
+  width: 100%;
+  background: red;
+  transition: width 0.4s ease;
+}
+</style>
+</head>
+
+<body>
+<div id="container">
+  <div id="vida-texto">Vida: -- / --</div>
+  <div id="barra-bg">
+    <div id="barra-vida"></div>
+  </div>
+</div>
+
+<script>
+// 🔴 COLE AQUI O LINK CSV DA PLANILHA
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/ID_DA_PLANILHA//gviz/tq?tqx=out:csv"
+
+async function atualizarVida() {
+  try {
+    const response = await fetch(SHEET_URL + "&_=" + Date.now());
+    const text = await response.text();
+
+    const linhas = text.split("\n");
+
+    // Ajuste se sua planilha mudar de linha
+    const vidaMax = parseInt(linhas[9].split(",")[3]); // B10:C10   
+    const dano = parseInt(linhas[9].split(",")[4]);    // E10
+
+    const atual = Math.max(0, vidaMax - dano);
+    const porcentagem = (atual / vidaMax) * 100;
+
+    document.getElementById("vida-texto").innerText =
+      `Vida: ${atual} / ${vidaMax}`;
+
+    document.getElementById("barra-vida").style.width =
+      porcentagem + "%";
+
+  } catch (e) {
+    console.error("Erro ao ler planilha", e);
+  }
+}
+
+// Atualiza a cada 1 segundo
+setInterval(atualizarVida, 1000);
+atualizarVida();
+</script>
+</body>
+</html>
