@@ -50,19 +50,18 @@ body {
 </div>
 
 <script>
-// 🔴 COLE AQUI O LINK CSV DA PLANILHA
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pubhtml"
+const SHEET_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/gviz/tq?tqx=out:csv&sheet=Ficha%20Pessoal";
 
 async function atualizarVida() {
   try {
     const response = await fetch(SHEET_URL + "&_=" + Date.now());
     const text = await response.text();
 
-    const linhas = text.split("\n");
+    const linhas = text.split("\n").map(l => l.split(";"));
 
-    // Ajuste se sua planilha mudar de linha
-    const vidaMax = parseInt(linhas[9].split(",")[3]); // B10:C10   
-    const dano = parseInt(linhas[9].split(",")[4]);    // E10
+    const vidaMax = Number(linhas[9][1]); // B10
+    const dano = Number(linhas[9][3]);    // D10
 
     const atual = Math.max(0, vidaMax - dano);
     const porcentagem = (atual / vidaMax) * 100;
@@ -78,12 +77,8 @@ async function atualizarVida() {
   }
 }
 
-// Atualiza a cada 1 segundo
 setInterval(atualizarVida, 1000);
 atualizarVida();
 </script>
 </body>
 </html>
-
-
-
