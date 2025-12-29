@@ -53,11 +53,9 @@ body {
 const SHEET_URL =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?output=csv";
 
-function num(v) {
+function toNum(v) {
   if (!v) return 0;
-  return Number(
-    v.replace(/[^\d.,-]/g, "").replace(",", ".")
-  );
+  return Number(v.replace(/[^\d]/g, ""));
 }
 
 async function atualizarVida() {
@@ -65,18 +63,18 @@ async function atualizarVida() {
     const res = await fetch(SHEET_URL + "&_=" + Date.now());
     const text = await res.text();
 
-    const linhas = text.split("\n").map(l => l.split(";"));
+    const linhas = text.split("\n");
 
     let vidaMax = 0;
     let dano = 0;
 
-    for (const linha of linhas) {
-      for (const celula of linha) {
-        if (vidaMax === 0 && num(celula) > 0) {
-          vidaMax = num(celula);
-        } else if (vidaMax > 0 && dano === 0) {
-          dano = num(celula);
-        }
+    for (let i = 0; i < linhas.length; i++) {
+      if (linhas[i].includes(",MÁXIMA,,DANO")) {
+        const dados = linhas[i + 1].split(",");
+
+        vidaMax = toNum(dados[1]); // Vida Máxima
+        dano    = toNum(dados[3]); // Dano
+        break;
       }
     }
 
@@ -90,8 +88,8 @@ async function atualizarVida() {
       pct + "%";
 
   } catch (e) {
-    document.getElementById("vida-texto").innerText = "Erro";
     console.error(e);
+    document.getElementById("vida-texto").innerText = "Erro";
   }
 }
 
@@ -100,6 +98,7 @@ atualizarVida();
 </script>
 </body>
 </html>
+
 
 
 
