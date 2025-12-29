@@ -60,8 +60,8 @@ async function atualizarVida() {
     const linhas = csv.split('\n');
 
     // Aba OBS vem primeiro
-    const vidaMax = Number(linhas[0].split(',')[1]);
-      const dano = Number(linhas[1].split(',')[1]);
+    const vidaMax = Number(linhas[1].split(',')[1]);
+      const dano = Number(linhas[2].split(',')[1]);
 
     if (!vidaMax || vidaMax <= 0) return;
 
@@ -84,4 +84,5 @@ atualizarVida();
 </script>
 </body>
 </html>
+
 
