@@ -2,95 +2,89 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Portrait RPG Debug</title>
+<title>Portrait RPG Final</title>
 <style>
+  /* Remove margens e barra de rolagem */
   body { 
     margin: 0; 
+    padding: 0;
     background: transparent; 
-    font-family: Arial, sans-serif; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
     color: white; 
     overflow: hidden; 
   }
   
+  /* Caixa principal */
   #container {
-    width: 320px;
+    width: 320px; /* Largura da barra */
     padding: 10px;
-    background: rgba(0,0,0,0.85);
-    border: 2px solid #b00000;
-    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.85); /* Fundo escuro semi-transparente */
+    border: 2px solid #b00000; /* Borda vermelha escura */
+    border-radius: 8px; /* Cantos arredondados */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5); /* Sombra suave atrás */
   }
 
+  /* Texto da Vida */
   #vida-texto {
     text-align: center;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: bold;
-    margin-bottom: 6px;
-    text-shadow: 1px 1px 2px black;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 2px 2px 0px #000; /* Sombra no texto para leitura fácil */
   }
 
+  /* Fundo da Barra (Cinza escuro) */
   #barra-bg {
     width: 100%;
     height: 24px;
-    background: #333;
+    background: #2a2a2a;
     border: 2px solid #111;
-    border-radius: 3px;
-    overflow: hidden;
+    border-radius: 4px;
+    overflow: hidden; /* Garante que a barra vermelha não vaze */
     position: relative;
   }
 
+  /* A Barra Vermelha (Vida) */
   #barra-vida {
     height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #ff0000, #ff4444);
-    transition: width 0.5s ease;
-  }
-
-  /* Área de mensagens de erro para debug */
-  #debug-log {
-    margin-top: 5px;
-    font-size: 10px;
-    color: #ffff00;
-    font-family: monospace;
-    white-space: pre-wrap;
-    background: rgba(0,0,0,0.5);
-    padding: 2px;
+    width: 100%; /* Começa cheia */
+    background: linear-gradient(180deg, #ff4444 0%, #cc0000 100%); /* Gradiente bonito */
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.5); /* Sombra interna para profundidade */
+    transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1); /* Animação suave */
   }
 </style>
 </head>
 
 <body>
+
 <div id="container">
-  <div id="vida-texto">Iniciando...</div>
+  <div id="vida-texto">Carregando...</div>
   <div id="barra-bg">
     <div id="barra-vida"></div>
   </div>
-  <div id="debug-log">Log de sistema...</div>
 </div>
 
 <script>
-// SEU LINK DA PLANILHA
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?gid=1156002832&single=true&output=csv";
+// ======================================================
+// COLE O SEU LINK DA PLANILHA AQUI EMBAIXO (DENTRO DAS ASPAS):
+const SHEET_URL = "SEU_LINK_AQUI"; 
+// ======================================================
 
-// Função para escrever na telinha amarela de debug
-function log(msg) {
-  const logEl = document.getElementById("debug-log");
-  logEl.innerText = msg;
-  console.log(msg);
-}
-
-function encontrarNumero(csv, palavraChave) {
+function encontrarNumero(csv, listaDeNomes) {
   const linhas = csv.split('\n');
-  const termo = palavraChave.toLowerCase(); 
+  const nomes = Array.isArray(listaDeNomes) ? listaDeNomes : [listaDeNomes];
 
   for (const linha of linhas) {
-    if (linha.toLowerCase().includes(termo)) {
-      // Divide por vírgula ou ponto e vírgula
+    const linhaLow = linha.toLowerCase();
+    // Verifica se a linha tem algum dos nomes (Vida, HP, VidaMax, etc)
+    if (nomes.some(nome => linhaLow.includes(nome.toLowerCase()))) {
       const partes = linha.split(/[,;]/);
       for (const p of partes) {
-        // Remove tudo que não for numero ou ponto
+        // Limpa texto para pegar apenas numeros
         const limpo = p.replace(/[^0-9.-]/g, '').trim();
         if (limpo === "") continue;
-        
         const n = Number(limpo);
         if (!isNaN(n)) return n;
       }
@@ -100,56 +94,37 @@ function encontrarNumero(csv, palavraChave) {
 }
 
 async function atualizarVida() {
-  const textoElement = document.getElementById("vida-texto");
-  
   try {
-    log("Tentando baixar CSV...");
-    
-    // O fetch pode falhar aqui se for bloqueado pelo navegador
     const res = await fetch(SHEET_URL + "&_=" + Date.now());
+    if (!res.ok) return; // Se der erro silencioso, apenas ignora
     
-    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
-    
-    log("CSV baixado. Lendo...");
     const csv = await res.text();
+
+    // Busca inteligente: Procura por VidaMax, Vida, HP, etc.
+    const vidaMax = encontrarNumero(csv, ["VidaMax", "Vida Max", "Vida", "HP", "Total"]);
     
-    // Verifica o conteúdo bruto (primeiros 50 caracteres)
-    log(`CSV Lido: ${csv.substring(0, 30)}...`);
+    // Busca inteligente: Procura por Dano, Ferimento, etc.
+    let dano = encontrarNumero(csv, ["Dano", "Ferimento", "Machucado"]);
 
-    const vidaMax = encontrarNumero(csv, "VidaMax");
-    const dano = encontrarNumero(csv, "dano");
+    if (vidaMax === null) return; // Se não achar vida, mantém como está
+    if (dano === null) dano = 0;  // Se não achar dano, considera 0
 
-    if (vidaMax === null) throw new Error("Não achei 'VidaMax' na planilha");
-    // Se não achar dano, assume 0
-    const danoFinal = dano === null ? 0 : dano;
-
-    const atual = Math.max(0, vidaMax - danoFinal);
+    // Cálculos
+    const atual = Math.max(0, vidaMax - dano);
     const pct = (atual / vidaMax) * 100;
 
-    textoElement.innerText = `Vida: ${atual} / ${vidaMax}`;
+    // Atualiza a tela
+    document.getElementById("vida-texto").innerText = `VIDA: ${atual} / ${vidaMax}`;
     document.getElementById("barra-vida").style.width = pct + "%";
-    
-    log("Atualizado com sucesso!");
-    // Limpa o log depois de 2 segundos se deu tudo certo
-    setTimeout(() => { document.getElementById("debug-log").innerText = "OK"; }, 2000);
 
   } catch (e) {
-    // Aqui mostra o erro exato na tela
-    log("ERRO: " + e.message);
-    
-    if (e.message.includes("Failed to fetch")) {
-      log("BLOQUEIO DE NAVEGADOR.\nTeste dentro do OBS.");
-    }
+    console.error(e); // Erros aparecem só no console do programador (F12), não na tela
   }
 }
 
-// Inicia o loop
+// Atualiza a cada 3 segundos
 setInterval(atualizarVida, 3000);
 atualizarVida();
 </script>
 </body>
 </html>
-
-
-
-
