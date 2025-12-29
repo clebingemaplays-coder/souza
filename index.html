@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Portrait RPG Final</title>
+<title>Portrait RPG Final Anti-Ghost</title>
 <style>
   /* CONFIGURAÇÃO VISUAL */
   body { 
@@ -68,7 +68,7 @@
 
 <script>
 // ======================================================
-// SEU LINK JÁ ESTÁ CONFIGURADO AQUI:
+// SEU LINK (NÃO PRECISA MEXER):
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?gid=1156002832&single=true&output=csv";
 // ======================================================
 
@@ -78,11 +78,9 @@ function encontrarNumero(csv, listaDeNomes) {
 
   for (const linha of linhas) {
     const linhaLow = linha.toLowerCase();
-    // Procura se a linha tem algum dos nomes
     if (nomes.some(nome => linhaLow.includes(nome.toLowerCase()))) {
       const partes = linha.split(/[,;]/);
       for (const p of partes) {
-        // Limpa texto para pegar apenas numeros
         const limpo = p.replace(/[^0-9.-]/g, '').trim();
         if (limpo === "") continue;
         const n = Number(limpo);
@@ -93,45 +91,46 @@ function encontrarNumero(csv, listaDeNomes) {
   return null;
 }
 
+// Variável para evitar atualização desnecessária
+let ultimaVidaAtual = -1;
+let ultimaVidaMax = -1;
+
 async function atualizarVida() {
   try {
-    // Busca a planilha (com timestamp para não travar cache)
+    // Busca a planilha
     const res = await fetch(SHEET_URL + "&_=" + Date.now());
     
-    if (!res.ok) {
-       console.log("Erro de conexão com o Google");
-       return; 
+    if (res.ok) {
+      const csv = await res.text();
+      const vidaMax = encontrarNumero(csv, ["VidaMax", "Vida Max", "Vida", "HP", "Total", "Maximo"]);
+      let dano = encontrarNumero(csv, ["Dano", "Ferimento", "Machucado", "Atual"]);
+
+      if (vidaMax !== null) {
+        if (dano === null) dano = 0;
+        const atual = Math.max(0, vidaMax - dano);
+
+        // Só atualiza a tela se o número realmente mudou (evita piscadas)
+        if (atual !== ultimaVidaAtual || vidaMax !== ultimaVidaMax) {
+           const pct = (atual / vidaMax) * 100;
+           document.getElementById("vida-texto").innerText = `VIDA: ${atual} / ${vidaMax}`;
+           document.getElementById("barra-vida").style.width = pct + "%";
+           
+           // Salva os valores atuais
+           ultimaVidaAtual = atual;
+           ultimaVidaMax = vidaMax;
+        }
+      }
     }
-    
-    const csv = await res.text();
-
-    // Procura por Vida (aceita VidaMax, Vida, HP, Total, etc)
-    const vidaMax = encontrarNumero(csv, ["VidaMax", "Vida Max", "Vida", "HP", "Total", "Maximo"]);
-    
-    // Procura por Dano (aceita Dano, Ferimento, Atual)
-    let dano = encontrarNumero(csv, ["Dano", "Ferimento", "Machucado", "Atual"]);
-
-    // Se não achar Vida, não faz nada (mantém o carregando ou valor anterior)
-    if (vidaMax === null) return;
-    
-    // Se não achar Dano, considera que está com 0 de dano (Vida Cheia)
-    if (dano === null) dano = 0;
-
-    // Faz a conta (Vida Atual = Maxima - Dano)
-    const atual = Math.max(0, vidaMax - dano);
-    const pct = (atual / vidaMax) * 100;
-
-    // Atualiza a tela
-    document.getElementById("vida-texto").innerText = `VIDA: ${atual} / ${vidaMax}`;
-    document.getElementById("barra-vida").style.width = pct + "%";
-
   } catch (e) {
     console.error(e); 
+  } finally {
+    // TRUQUE: Só agenda a próxima busca DEPOIS que essa terminar.
+    // Isso impede que duas buscas aconteçam ao mesmo tempo e embaralhem os dados.
+    setTimeout(atualizarVida, 2000); 
   }
 }
 
-// Atualiza a cada 3 segundos
-setInterval(atualizarVida, 3000);
+// Inicia o processo
 atualizarVida();
 </script>
 </body>
