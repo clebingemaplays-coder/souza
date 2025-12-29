@@ -50,57 +50,65 @@ body {
 </div>
 
 <script>
+// 🔴 LINK CSV (TEM QUE TERMINAR EM output=csv)
 const SHEET_URL =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?output=csv";
 
-function toNum(v) {
-  if (!v) return 0;
-  return Number(v.replace(/[^\d]/g, ""));
+// ===============================
+// FUNÇÕES DE SEGURANÇA
+// ===============================
+function getNumberSafe(value, fallback = 0) {
+  if (!value) return fallback;
+
+  const cleaned = value
+    .toString()
+    .replace('%', '')
+    .replace(',', '.')
+    .trim();
+
+  const num = Number(cleaned);
+  return isNaN(num) ? fallback : num;
 }
 
+// ===============================
+// ATUALIZA VIDA
+// ===============================
 async function atualizarVida() {
   try {
-    const res = await fetch(SHEET_URL + "&_=" + Date.now());
-    const text = await res.text();
+    const response = await fetch(SHEET_URL + "&_=" + Date.now());
+    const text = await response.text();
 
-    const linhas = text.split("\n");
+    const linhas = text.split('\n');
 
-    let vidaMax = 0;
-    let dano = 0;
+    // 🔧 LINHA DA VIDA (ajustada ao CSV que você mandou)
+    // VIDA MÁXIMA = coluna 1
+    // VIDA ATUAL (%) = coluna 2
+    const linhaVida = linhas.find(l => l.includes('PONTOS DE VIDA'));
 
-    for (let i = 0; i < linhas.length; i++) {
-      if (linhas[i].includes(",MÁXIMA,,DANO")) {
-        const dados = linhas[i + 1].split(",");
+    if (!linhaVida) return;
 
-        vidaMax = toNum(dados[1]); // Vida Máxima
-        dano    = toNum(dados[3]); // Dano
-        break;
-      }
-    }
+    const dados = linhaVida.split(',');
 
-    const atual = Math.max(0, vidaMax - dano);
-    const pct = vidaMax ? (atual / vidaMax) * 100 : 0;
+    const vidaMax = getNumberSafe(dados[1], 1);
+    const vidaPercent = getNumberSafe(dados[2], 100);
 
-    document.getElementById("vida-texto").innerText =
-      `Vida: ${atual} / ${vidaMax}`;
+    const vidaAtual = Math.round((vidaPercent / 100) * vidaMax);
+    const porcentagemBarra = Math.max(0, Math.min(100, (vidaAtual / vidaMax) * 100));
 
-    document.getElementById("barra-vida").style.width =
-      pct + "%";
+    document.getElementById('vida-texto').innerText =
+      `Vida: ${vidaAtual} / ${vidaMax}`;
+
+    document.getElementById('barra-vida').style.width =
+      porcentagemBarra + '%';
 
   } catch (e) {
-    console.error(e);
-    document.getElementById("vida-texto").innerText = "Erro";
+    console.error("Erro ao ler CSV", e);
   }
 }
 
+// Atualiza a cada 1s
 setInterval(atualizarVida, 1000);
 atualizarVida();
 </script>
 </body>
 </html>
-
-
-
-
-
-
