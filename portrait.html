@@ -43,7 +43,7 @@ body {
 
 <body>
 <div id="container">
-  <div id="vida-texto">Vida: carregando...</div>
+  <div id="vida-texto">Vida: -- / --</div>
   <div id="barra-bg">
     <div id="barra-vida"></div>
   </div>
@@ -51,42 +51,31 @@ body {
 
 <script>
 const SHEET_URL =
-"https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?output=csv";
-
-function toNumber(v) {
-  if (!v) return 0;
-  return Number(v.replace('%', '').replace(',', '.')) || 0;
-}
+"COLE_AQUI_SEU_LINK_CSV";
 
 async function atualizarVida() {
   try {
     const res = await fetch(SHEET_URL + "&_=" + Date.now());
-    const text = await res.text();
-    const linhas = text.split('\n');
+    const csv = await res.text();
+    const linhas = csv.split('\n');
 
-    // 🔴 Encontrar o bloco de VIDA
-    const idx = linhas.findIndex(l => l.includes('PONTOS DE VIDA'));
-    if (idx === -1) return;
+    // Aba OBS vem primeiro
+    const vidaMax = Number(linhas[1].split(',')[1]);
+    const dano = Number(linhas[2].split(',')[1]);
 
-    // Linha dos valores reais (logo abaixo)
-    const valores = linhas[idx + 4].split(',');
+    if (!vidaMax || vidaMax <= 0) return;
 
-    const vidaMax = toNumber(valores[1]); // 14
-    const dano = toNumber(valores[2]);    // 0
+    const atual = Math.max(0, vidaMax - dano);
+    const pct = (atual / vidaMax) * 100;
 
-    if (vidaMax <= 0) return;
+    document.getElementById("vida-texto").innerText =
+      `Vida: ${atual} / ${vidaMax}`;
 
-    const vidaAtual = Math.max(0, vidaMax - dano);
-    const pct = (vidaAtual / vidaMax) * 100;
-
-    document.getElementById('vida-texto').innerText =
-      `Vida: ${vidaAtual} / ${vidaMax}`;
-
-    document.getElementById('barra-vida').style.width =
-      pct + '%';
+    document.getElementById("barra-vida").style.width =
+      pct + "%";
 
   } catch (e) {
-    console.error(e);
+    console.error("Erro ao atualizar vida:", e);
   }
 }
 
