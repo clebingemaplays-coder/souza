@@ -58,10 +58,11 @@ async function atualizarVida() {
     const response = await fetch(SHEET_URL + "&_=" + Date.now());
     const text = await response.text();
 
-    const linhas = text.split("\n").map(l => l.split(";"));
+   const linhas = text.split("\n").map(l => l.split(";"));
 
-    const vidaMax = Number(linhas[9][1]); // B10:C10
-    const dano = Number(linhas[9][3]);    // D10:E10
+  const vidaMax = Number(linhas[9][1]); // B10:C10
+  const dano    = Number(linhas[9][3]); // D10:E10
+    
 
     const atual = Math.max(0, vidaMax - dano);
     const porcentagem = (atual / vidaMax) * 100;
@@ -82,6 +83,7 @@ atualizarVida();
 </script>
 </body>
 </html>
+
 
 
 
