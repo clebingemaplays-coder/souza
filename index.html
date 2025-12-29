@@ -4,12 +4,7 @@
 <meta charset="UTF-8">
 <title>Portrait RPG - Modulo Juiz</title>
 <style>
-  /* ==================================================================
-     SETOR 1: VISUAL (CSS)
-     Aqui cuidamos apenas da beleza, cores e posições.
-  ================================================================== */
-  
-  /* Link da Imagem do Personagem */
+
   :root {
     --char-image: url('https://i.imgur.com/8Q5gq0d.png'); 
   }
@@ -67,10 +62,10 @@
     width: 100%;
     position: absolute;
     top: 0; left: 0;
-    transition: width 0.3s ease-out; /* Movimento suave */
+    transition: width 0.3s ease-out; 
   }
 
-  /* Cores */
+
   #hp-bar .bar-fill { background: linear-gradient(90deg, #800000, #ff0000); }
   #sp-bar .bar-fill { background: linear-gradient(90deg, #000080, #0055ff); }
 
@@ -84,7 +79,7 @@
     color: white;
     font-size: 24px;
     font-weight: 900;
-    /* Contorno preto forte para leitura */
+    
     text-shadow: 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
     z-index: 5;
   }
@@ -107,79 +102,73 @@
 </div>
 
 <script>
-// ==================================================================
-// SETOR 2: CONFIGURAÇÃO
-// ==================================================================
+
 const CONFIG = {
-    // Seu Link aqui:
+   
     url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?gid=1156002832&single=true&output=csv",
     
-    // Palavras chaves para procurar na planilha
+    
     termosVida: ["VidaMax", "Vida Max", "Vida", "HP", "PV"],
     termosDanoVida: ["DanoVida", "Dano", "Ferimento", "Machucado"],
     
     termosSanidade: ["SanidadeMax", "Sanidade", "ManaMax", "Mana", "PE", "PM", "San", "Mental"],
     termosDanoSanidade: ["DanoSanidade", "DanoMana", "Gasto", "DanoMental", "DanoPE"],
 
-    // O segredo do sucesso: Quantas leituras iguais seguidas para confirmar?
-    // 4 leituras (lendo a cada 1s) = 4 segundos de estabilidade antes de mudar.
+  
     confirmacoesNecessarias: 4 
 };
 
-// ==================================================================
-// SETOR 3: MÓDULO "O JUIZ" (Lógica de Estabilidade)
-// ==================================================================
+
 class JuizDeValor {
     constructor(idTexto, idBarra) {
         this.elTexto = document.getElementById(idTexto);
         this.elBarra = document.getElementById(idBarra);
         
-        // O que está na tela agora
+        
         this.telaAtual = -1;
         this.telaMax = -1;
 
-        // O "Candidato" a mudança
+        
         this.pendenteAtual = -1;
         this.pendenteMax = -1;
         
-        // Contagem de confiança
+       
         this.confianca = 0;
     }
 
     julgar(novoAtual, novoMax) {
-        // Se a planilha vier com zero ou erro, ignoramos
+       
         if (novoMax <= 0 || isNaN(novoAtual)) return;
 
-        // 1. O valor novo é igual ao que já está na tela?
+       
         if (novoAtual === this.telaAtual && novoMax === this.telaMax) {
             this.confianca = 0; // Relaxa, nada mudou.
             this.pendenteAtual = -1;
             return;
         }
 
-        // 2. O valor novo é igual ao "Candidato" da última vez?
+       
         if (novoAtual === this.pendenteAtual && novoMax === this.pendenteMax) {
-            // Sim! Aumenta a confiança.
+            
             this.confianca++;
-            // console.log(`Validando mudança... Confiança: ${this.confianca}/${CONFIG.confirmacoesNecessarias}`);
+           
         } else {
-            // Não! O valor mudou de novo (Ghosting/Rollback). Zera tudo.
             this.pendenteAtual = novoAtual;
             this.pendenteMax = novoMax;
-            this.confianca = 1; // Começa a contar de novo
-            // console.log("Detectada oscilação. Reiniciando contagem.");
+            this.confianca = 1; 
+           
         }
 
-        // 3. O Juiz bate o martelo?
+        
         if (this.confianca >= CONFIG.confirmacoesNecessarias) {
             this.atualizarTela(novoAtual, novoMax);
             
-            // Agora esse é o novo padrão oficial da tela
+          
             this.telaAtual = novoAtual;
             this.telaMax = novoMax;
             
-            this.confianca = 0; // Reseta para a próxima mudança
-            // console.log("Atualização confirmada e enviada para tela.");
+            this.confianca = 0; 
+            
         }
     }
 
@@ -190,28 +179,26 @@ class JuizDeValor {
     }
 }
 
-// Instanciando os Juízes (Um para cada barra)
+
 const juizHP = new JuizDeValor('hp-text', 'hp-fill');
 const juizSP = new JuizDeValor('sp-text', 'sp-fill');
 
 
-// ==================================================================
-// SETOR 4: LEITOR DE DADOS (Scanner)
-// ==================================================================
+
 function lerNumeroNaPlanilha(csv, listaTermos) {
   const linhas = csv.split('\n');
   
   for (const linha of linhas) {
     const linhaBaixa = linha.toLowerCase();
     
-    // Verifica se a linha tem algum dos termos procurados
+  
     const temTermo = listaTermos.some(termo => linhaBaixa.includes(termo.toLowerCase()));
 
     if (temTermo) {
-      // Quebra a linha nas vírgulas
+     
       const partes = linha.split(/[,;]/);
       for (const p of partes) {
-        // Tenta achar um número limpo
+        
         const limpo = p.replace(/[^0-9.-]/g, '').trim();
         if (limpo !== "") {
            const num = Number(limpo);
@@ -223,34 +210,32 @@ function lerNumeroNaPlanilha(csv, listaTermos) {
   return null;
 }
 
-// ==================================================================
-// SETOR 5: MOTOR PRINCIPAL (Loop)
-// ==================================================================
+
 async function cicloDeVida() {
   try {
-    // 1. Baixa a planilha
+  
     const resposta = await fetch(CONFIG.url + "&_=" + Date.now());
     
     if (resposta.ok) {
         const dadosCSV = await resposta.text();
 
-        // 2. Extrai Vida
+       
         const vidaMax = lerNumeroNaPlanilha(dadosCSV, CONFIG.termosVida);
         let danoVida = lerNumeroNaPlanilha(dadosCSV, CONFIG.termosDanoVida);
         if (danoVida === null) danoVida = 0;
 
-        // 3. Envia para o Juiz da Vida
+     
         if (vidaMax !== null) {
             const vidaAtual = Math.max(0, vidaMax - danoVida);
             juizHP.julgar(vidaAtual, vidaMax);
         }
 
-        // 4. Extrai Sanidade/Mana
+       
         const sanMax = lerNumeroNaPlanilha(dadosCSV, CONFIG.termosSanidade);
         let danoSan = lerNumeroNaPlanilha(dadosCSV, CONFIG.termosDanoSanidade);
         if (danoSan === null) danoSan = 0;
 
-        // 5. Envia para o Juiz da Sanidade
+        
         if (sanMax !== null) {
             const sanAtual = Math.max(0, sanMax - danoSan);
             juizSP.julgar(sanAtual, sanMax);
@@ -259,13 +244,12 @@ async function cicloDeVida() {
   } catch (erro) {
       console.error("Erro na leitura:", erro);
   } finally {
-      // Roda de novo a cada 1 segundo
-      // (Com 4 confirmações, vai levar ~4 segundos para atualizar na tela)
+     
       setTimeout(cicloDeVida, 1000);
   }
 }
 
-// Inicia o motor
+
 cicloDeVida();
 </script>
 </body>
