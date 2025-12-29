@@ -187,15 +187,15 @@ const juizSP = new JuizDeValor('sp-text', 'sp-fill');
 
 
 
-function lerNumeroNaPlanilha(csv, listaTermos) {
-
-  function lerTextoNaPlanilha(csv, listaTermos) {
+function lerTextoNaPlanilha(csv, listaTermos) {
   const linhas = csv.split('\n');
+
   for (const linha of linhas) {
-    const linhaBaixa = linha.toLowerCase();
-    const temTermo = listaTermos.some(t => linhaBaixa.includes(t.toLowerCase()));
-    if (temTermo) {
-      const partes = linha.split(/[,;]/);
+    const limpa = linha.replace(/"/g, '');
+    const baixa = limpa.toLowerCase();
+
+    if (listaTermos.some(t => baixa.includes(t.toLowerCase()))) {
+      const partes = limpa.split(/[,;]/);
       for (const p of partes) {
         if (p.includes("http")) return p.trim();
       }
@@ -226,7 +226,7 @@ function lerNumeroNaPlanilha(csv, listaTermos) {
     }
   }
   return null;
-}
+
 
 
 async function cicloDeVida() {
