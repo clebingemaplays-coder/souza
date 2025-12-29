@@ -3,66 +3,76 @@
 <head>
 <meta charset="UTF-8">
 <title>Portrait RPG</title>
-
 <style>
-body {
-  margin: 0;
-  background: transparent;
-  font-family: Arial, sans-serif;
-  color: white;
-}
+  body { margin: 0; background: transparent; font-family: Arial, sans-serif; color: white; overflow: hidden; }
+  
+  #container {
+    width: 320px;
+    padding: 10px;
+    background: rgba(0,0,0,0.8); /* Um pouco mais escuro para leitura */
+    border: 2px solid #b00000;
+    border-radius: 5px; /* Borda arredondada visualmente melhor */
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  }
 
-#container {
-  width: 320px;
-  padding: 10px;
-  background: rgba(0,0,0,0.75);
-  border: 2px solid #b00000;
-}
+  #vida-texto {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 6px;
+    text-shadow: 1px 1px 2px black;
+  }
 
-#vida-texto {
-  text-align: center;
-  font-size: 18px;
-  margin-bottom: 6px;
-}
+  #barra-bg {
+    width: 100%;
+    height: 24px;
+    background: #333;
+    border: 2px solid #111;
+    border-radius: 3px;
+    overflow: hidden; /* Garante que a barra interna não vase */
+  }
 
-#barra-bg {
-  width: 100%;
-  height: 22px;
-  background: #222;
-  border: 1px solid #555;
-}
-
-#barra-vida {
-  height: 100%;
-  width: 100%;
-  background: red;
-  transition: width 0.4s ease;
-}
+  #barra-vida {
+    height: 100%;
+    width: 0%; /* Começa zerado */
+    background: linear-gradient(90deg, #ff0000, #ff4444); /* Gradiente para efeito bonito */
+    transition: width 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+  }
 </style>
 </head>
 
 <body>
 <div id="container">
-  <div id="vida-texto">Vida: -- / --</div>
+  <div id="vida-texto">Carregando...</div>
   <div id="barra-bg">
     <div id="barra-vida"></div>
   </div>
 </div>
 
 <script>
-const SHEET_URL =
-"https://docs.google.com/spreadsheets/d/e/1DkjeX4GXPg-bCUa-QfDJaeaO72Gi_6LPtvAn9r_ced8/pub?output=csv";
+// URL da sua planilha
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/1DkjeX4GXPg-bCUa-QfDJaeaO72Gi_6LPtvAn9r_ced8/pub?output=csv";
 
-function encontrarNumero(csv, palavra) {
+// Função de busca melhorada
+function encontrarNumero(csv, palavraChave) {
   const linhas = csv.split('\n');
+  const termo = palavraChave.toLowerCase(); // Ignorar maiúsculas/minúsculas na busca
 
   for (const linha of linhas) {
-    if (linha.includes(palavra)) {
-      const partes = linha.split(',');
+    // Se a linha contiver a palavra chave
+    if (linha.toLowerCase().includes(termo)) {
+      // Divide por vírgula OU ponto e vírgula (regex)
+      const partes = linha.split(/[,;]/);
+      
       for (const p of partes) {
-        const n = Number(p.replace('%','').trim());
-        if (!isNaN(n)) {
-          return n;
+        // Limpa aspas, espaços e % para pegar apenas o número
+        const limpo = p.replace(/["'%\r]/g, '').trim();
+        const n = Number(limpo);
+
+        // Verifica se é um número válido E não é a própria palavra chave (para não pegar o "Vida" como 0)
+        // Também ignoramos zeros se for exatamente a palavra chave, mas aceitamos 0 como valor
+        if (!isNaN(n) && limpo !== "") {
+           return n;
         }
       }
     }
@@ -72,29 +82,41 @@ function encontrarNumero(csv, palavra) {
 
 async function atualizarVida() {
   try {
+    // Adiciona timestamp para evitar cache do navegador
     const res = await fetch(SHEET_URL + "&_=" + Date.now());
+    
+    if (!res.ok) throw new Error("Falha ao baixar CSV");
+    
     const csv = await res.text();
+    
+    // Debug: Mostra o CSV no console do navegador (F12) para checar se baixou
+    // console.log("CSV Baixado:", csv); 
 
+    // Busca os valores. ATENÇÃO: Os nomes aqui devem ser parte do que está escrito na planilha
     const vidaMax = encontrarNumero(csv, "VidaMax");
     const dano = encontrarNumero(csv, "Dano");
 
-    if (vidaMax === null || dano === null || vidaMax <= 0) return;
+    // Se não achou os números, avisa no console e não atualiza
+    if (vidaMax === null || dano === null) {
+      console.warn("Não encontrei 'VidaMax' ou 'Dano' no CSV. Verifique a planilha.");
+      return;
+    }
 
     const atual = Math.max(0, vidaMax - dano);
     const pct = (atual / vidaMax) * 100;
 
-    document.getElementById("vida-texto").innerText =
-      `Vida: ${atual} / ${vidaMax}`;
-
-    document.getElementById("barra-vida").style.width =
-      pct + "%";
+    // Atualiza a interface
+    document.getElementById("vida-texto").innerText = `Vida: ${atual} / ${vidaMax}`;
+    document.getElementById("barra-vida").style.width = pct + "%";
 
   } catch (e) {
-    console.error("Erro:", e);
+    console.error("Erro no script:", e);
+    document.getElementById("vida-texto").innerText = "Erro Conexão";
   }
 }
 
-setInterval(atualizarVida, 1000);
+// Atualiza a cada 2 segundos (menos agressivo que 1s)
+setInterval(atualizarVida, 2000);
 atualizarVida();
 </script>
 </body>
