@@ -2,14 +2,19 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Portrait RPG - Trava Absoluta</title>
+<title>Portrait RPG - Modulo Juiz</title>
 <style>
-  /* === CONFIGURAÇÃO DA IMAGEM === */
+  /* ==================================================================
+     SETOR 1: VISUAL (CSS)
+     Aqui cuidamos apenas da beleza, cores e posições.
+  ================================================================== */
+  
+  /* Link da Imagem do Personagem */
   :root {
     --char-image: url('https://i.imgur.com/8Q5gq0d.png'); 
   }
 
-  body { margin: 0; padding: 0; background: transparent; overflow: hidden; font-family: 'Arial Black', 'Arial Bold', Impact, sans-serif; }
+  body { margin: 0; padding: 0; background: transparent; overflow: hidden; font-family: 'Arial Black', Impact, sans-serif; }
 
   #portrait-container {
     display: flex;
@@ -30,7 +35,7 @@
     position: absolute;
     left: 0;
     z-index: 10;
-    box-shadow: 3px 0 10px rgba(0,0,0,0.5);
+    box-shadow: 3px 0 10px rgba(0,0,0,0.6);
   }
 
   #bars-container {
@@ -41,7 +46,7 @@
     margin-left: 70px; 
     width: 420px;
     padding: 10px 10px 10px 60px; 
-    background: rgba(0,0,0,0.85);
+    background: rgba(0,0,0,0.9);
     border-radius: 0 10px 10px 0;
     border: 2px solid #1a1a1a;
     border-left: none; 
@@ -62,11 +67,12 @@
     width: 100%;
     position: absolute;
     top: 0; left: 0;
-    transition: width 0.5s ease-out;
+    transition: width 0.3s ease-out; /* Movimento suave */
   }
 
-  #hp-bar .bar-fill { background: linear-gradient(90deg, #990000, #ff0000); }
-  #sp-bar .bar-fill { background: linear-gradient(90deg, #000099, #0044ff); }
+  /* Cores */
+  #hp-bar .bar-fill { background: linear-gradient(90deg, #800000, #ff0000); }
+  #sp-bar .bar-fill { background: linear-gradient(90deg, #000080, #0055ff); }
 
   .bar-text {
     position: absolute;
@@ -78,20 +84,16 @@
     color: white;
     font-size: 24px;
     font-weight: 900;
-    text-shadow: 
-       2px  2px 0 #000, -2px  2px 0 #000, 
-      -2px -2px 0 #000,  2px -2px 0 #000,
-       0px  3px 3px rgba(0,0,0,0.9);
+    /* Contorno preto forte para leitura */
+    text-shadow: 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
     z-index: 5;
   }
 </style>
 </head>
 
 <body>
-
 <div id="portrait-container">
   <div id="char-circle"></div>
-  
   <div id="bars-container">
     <div id="hp-bar" class="bar-wrapper">
       <div class="bar-fill" id="hp-fill"></div>
@@ -105,117 +107,166 @@
 </div>
 
 <script>
-// SEU LINK:
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?gid=1156002832&single=true&output=csv";
+// ==================================================================
+// SETOR 2: CONFIGURAÇÃO
+// ==================================================================
+const CONFIG = {
+    // Seu Link aqui:
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?gid=1156002832&single=true&output=csv",
+    
+    // Palavras chaves para procurar na planilha
+    termosVida: ["VidaMax", "Vida Max", "Vida", "HP", "PV"],
+    termosDanoVida: ["DanoVida", "Dano", "Ferimento", "Machucado"],
+    
+    termosSanidade: ["SanidadeMax", "Sanidade", "ManaMax", "Mana", "PE", "PM", "San", "Mental"],
+    termosDanoSanidade: ["DanoSanidade", "DanoMana", "Gasto", "DanoMental", "DanoPE"],
 
-// CLASSE QUE GERENCIA CADA BARRA INDIVIDUALMENTE
-class ControladorBarra {
+    // O segredo do sucesso: Quantas leituras iguais seguidas para confirmar?
+    // 4 leituras (lendo a cada 1s) = 4 segundos de estabilidade antes de mudar.
+    confirmacoesNecessarias: 4 
+};
+
+// ==================================================================
+// SETOR 3: MÓDULO "O JUIZ" (Lógica de Estabilidade)
+// ==================================================================
+class JuizDeValor {
     constructor(idTexto, idBarra) {
         this.elTexto = document.getElementById(idTexto);
         this.elBarra = document.getElementById(idBarra);
         
-        this.valorAtualNaTela = -1;
-        this.maxAtualNaTela = -1;
+        // O que está na tela agora
+        this.telaAtual = -1;
+        this.telaMax = -1;
 
-        // Lista de Bloqueio (O "Ex" namorado)
-        this.valorBloqueado = -1; 
-        this.tempoDesbloqueio = 0;
+        // O "Candidato" a mudança
+        this.pendenteAtual = -1;
+        this.pendenteMax = -1;
+        
+        // Contagem de confiança
+        this.confianca = 0;
     }
 
-    processar(novoAtual, novoMax) {
-        // Se vier zero ou erro, ignora
-        if (novoMax <= 0) return;
+    julgar(novoAtual, novoMax) {
+        // Se a planilha vier com zero ou erro, ignoramos
+        if (novoMax <= 0 || isNaN(novoAtual)) return;
 
-        // VERIFICAÇÃO 1: É o mesmo valor que já tá na tela?
-        if (novoAtual === this.valorAtualNaTela && novoMax === this.maxAtualNaTela) {
-            return; // Não faz nada
+        // 1. O valor novo é igual ao que já está na tela?
+        if (novoAtual === this.telaAtual && novoMax === this.telaMax) {
+            this.confianca = 0; // Relaxa, nada mudou.
+            this.pendenteAtual = -1;
+            return;
         }
 
-        // VERIFICAÇÃO 2: Esse valor está bloqueado (é um fantasma)?
-        const agora = Date.now();
-        if (novoAtual === this.valorBloqueado && agora < this.tempoDesbloqueio) {
-            // Console.log("Fantasma bloqueado:", novoAtual);
-            return; // IGNORA O ROLLBACK
+        // 2. O valor novo é igual ao "Candidato" da última vez?
+        if (novoAtual === this.pendenteAtual && novoMax === this.pendenteMax) {
+            // Sim! Aumenta a confiança.
+            this.confianca++;
+            // console.log(`Validando mudança... Confiança: ${this.confianca}/${CONFIG.confirmacoesNecessarias}`);
+        } else {
+            // Não! O valor mudou de novo (Ghosting/Rollback). Zera tudo.
+            this.pendenteAtual = novoAtual;
+            this.pendenteMax = novoMax;
+            this.confianca = 1; // Começa a contar de novo
+            // console.log("Detectada oscilação. Reiniciando contagem.");
         }
 
-        // SE PASSOU: É um valor novo e válido!
-        
-        // 1. Bloqueia o valor antigo (o que estava na tela vira o "ex")
-        this.valorBloqueado = this.valorAtualNaTela;
-        this.tempoDesbloqueio = agora + 15000; // Bloqueia por 15 segundos
-
-        // 2. Atualiza a tela para o novo
-        this.atualizarVisual(novoAtual, novoMax);
-        
-        // 3. Salva o novo como atual
-        this.valorAtualNaTela = novoAtual;
-        this.maxAtualNaTela = novoMax;
+        // 3. O Juiz bate o martelo?
+        if (this.confianca >= CONFIG.confirmacoesNecessarias) {
+            this.atualizarTela(novoAtual, novoMax);
+            
+            // Agora esse é o novo padrão oficial da tela
+            this.telaAtual = novoAtual;
+            this.telaMax = novoMax;
+            
+            this.confianca = 0; // Reseta para a próxima mudança
+            // console.log("Atualização confirmada e enviada para tela.");
+        }
     }
 
-    atualizarVisual(atual, max) {
-        const pct = Math.max(0, Math.min(100, (atual / max) * 100));
+    atualizarTela(atual, max) {
+        const porcentagem = Math.max(0, Math.min(100, (atual / max) * 100));
         this.elTexto.innerText = `${atual}/${max}`;
-        this.elBarra.style.width = pct + "%";
+        this.elBarra.style.width = porcentagem + "%";
     }
 }
 
-// Cria os controles
-const ctrlHP = new ControladorBarra('hp-text', 'hp-fill');
-const ctrlSP = new ControladorBarra('sp-text', 'sp-fill');
+// Instanciando os Juízes (Um para cada barra)
+const juizHP = new JuizDeValor('hp-text', 'hp-fill');
+const juizSP = new JuizDeValor('sp-text', 'sp-fill');
 
-function encontrarNumero(csv, listaDeNomes) {
+
+// ==================================================================
+// SETOR 4: LEITOR DE DADOS (Scanner)
+// ==================================================================
+function lerNumeroNaPlanilha(csv, listaTermos) {
   const linhas = csv.split('\n');
-  const nomes = Array.isArray(listaDeNomes) ? listaDeNomes : [listaDeNomes];
+  
   for (const linha of linhas) {
-    const linhaLow = linha.toLowerCase();
-    if (nomes.some(nome => linhaLow.includes(nome.toLowerCase()))) {
+    const linhaBaixa = linha.toLowerCase();
+    
+    // Verifica se a linha tem algum dos termos procurados
+    const temTermo = listaTermos.some(termo => linhaBaixa.includes(termo.toLowerCase()));
+
+    if (temTermo) {
+      // Quebra a linha nas vírgulas
       const partes = linha.split(/[,;]/);
       for (const p of partes) {
+        // Tenta achar um número limpo
         const limpo = p.replace(/[^0-9.-]/g, '').trim();
-        if (limpo === "") continue;
-        const n = Number(limpo);
-        if (!isNaN(n)) return n;
+        if (limpo !== "") {
+           const num = Number(limpo);
+           if (!isNaN(num)) return num;
+        }
       }
     }
   }
   return null;
 }
 
-async function loopPrincipal() {
+// ==================================================================
+// SETOR 5: MOTOR PRINCIPAL (Loop)
+// ==================================================================
+async function cicloDeVida() {
   try {
-    const res = await fetch(SHEET_URL + "&_=" + Date.now());
-    if (res.ok) {
-      const csv = await res.text();
+    // 1. Baixa a planilha
+    const resposta = await fetch(CONFIG.url + "&_=" + Date.now());
+    
+    if (resposta.ok) {
+        const dadosCSV = await resposta.text();
 
-      // --- VIDA ---
-      const vidaMax = encontrarNumero(csv, ["VidaMax", "Vida Max", "Vida", "HP", "PV"]);
-      let danoHP = encontrarNumero(csv, ["DanoVida", "Dano", "Ferimento"]);
-      if (danoHP === null) danoHP = 0;
-      
-      if (vidaMax !== null) {
-          const vidaAtual = Math.max(0, vidaMax - danoHP);
-          ctrlHP.processar(vidaAtual, vidaMax);
-      }
+        // 2. Extrai Vida
+        const vidaMax = lerNumeroNaPlanilha(dadosCSV, CONFIG.termosVida);
+        let danoVida = lerNumeroNaPlanilha(dadosCSV, CONFIG.termosDanoVida);
+        if (danoVida === null) danoVida = 0;
 
-      // --- SANIDADE / MANA ---
-      // Adicionei mais variações de nomes para garantir
-      const sanMax = encontrarNumero(csv, ["SanidadeMax", "Sanidade", "ManaMax", "Mana", "PE", "PM", "San", "Mental", "Ocultismo"]);
-      let danoSP = encontrarNumero(csv, ["DanoSanidade", "DanoMana", "Gasto", "DanoMental", "DanoPE"]);
-      if (danoSP === null) danoSP = 0;
+        // 3. Envia para o Juiz da Vida
+        if (vidaMax !== null) {
+            const vidaAtual = Math.max(0, vidaMax - danoVida);
+            juizHP.julgar(vidaAtual, vidaMax);
+        }
 
-      if (sanMax !== null) {
-          const sanAtual = Math.max(0, sanMax - danoSP);
-          ctrlSP.processar(sanAtual, sanMax);
-      }
+        // 4. Extrai Sanidade/Mana
+        const sanMax = lerNumeroNaPlanilha(dadosCSV, CONFIG.termosSanidade);
+        let danoSan = lerNumeroNaPlanilha(dadosCSV, CONFIG.termosDanoSanidade);
+        if (danoSan === null) danoSan = 0;
+
+        // 5. Envia para o Juiz da Sanidade
+        if (sanMax !== null) {
+            const sanAtual = Math.max(0, sanMax - danoSan);
+            juizSP.julgar(sanAtual, sanMax);
+        }
     }
-  } catch (e) { console.error(e); } 
-  finally { 
-    // Verifica a cada 1 segundo
-    setTimeout(loopPrincipal, 1000); 
+  } catch (erro) {
+      console.error("Erro na leitura:", erro);
+  } finally {
+      // Roda de novo a cada 1 segundo
+      // (Com 4 confirmações, vai levar ~4 segundos para atualizar na tela)
+      setTimeout(cicloDeVida, 1000);
   }
 }
 
-loopPrincipal();
+// Inicia o motor
+cicloDeVida();
 </script>
 </body>
 </html>
