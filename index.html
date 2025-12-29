@@ -2,10 +2,11 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Portrait RPG - Sistema de Consenso</title>
+<title>Portrait RPG - Final</title>
 <style>
   /* === CONFIGURAÇÃO DA IMAGEM === */
   :root {
+    /* Troque o link aqui se a imagem sumir */
     --char-image: url('https://i.imgur.com/8Q5gq0d.png'); 
   }
 
@@ -16,9 +17,8 @@
     display: flex;
     align-items: center;
     width: 500px;
-    height: 180px; 
+    height: 140px; /* Altura ajustada para caber certinho */
     position: relative;
-    flex-wrap: wrap;
   }
 
   #char-circle {
@@ -30,7 +30,7 @@
     background-size: cover;
     background-position: center;
     position: absolute;
-    left: 0; top: 5px;
+    left: 0;
     z-index: 10;
     box-shadow: 3px 0 10px rgba(0,0,0,0.6);
   }
@@ -41,214 +41,5 @@
     justify-content: center;
     gap: 6px; 
     margin-left: 70px; 
-    margin-top: 5px;
     width: 420px;
-    padding: 10px 10px 10px 60px; 
-    background: rgba(0,0,0,0.9);
-    border-radius: 0 10px 10px 0;
-    border: 2px solid #1a1a1a;
-    border-left: none; 
-  }
-
-  /* --- BARRAS --- */
-  .bar-wrapper {
-    width: 100%;
-    height: 35px;
-    background: #222;
-    border-radius: 4px;
-    overflow: hidden;
-    position: relative;
-    border: 2px solid #000;
-  }
-  .bar-fill {
-    height: 100%; width: 100%; position: absolute; top: 0; left: 0;
-    transition: width 0.3s ease-out;
-  }
-  #hp-bar .bar-fill { background: linear-gradient(90deg, #800000, #ff0000); }
-  #sp-bar .bar-fill { background: linear-gradient(90deg, #000080, #0055ff); }
-
-  .bar-text {
-    position: absolute; width: 100%; height: 100%;
-    display: flex; justify-content: center; align-items: center;
-    color: white; font-size: 24px; font-weight: 900;
-    text-shadow: 3px 3px 0 #000, -1px -1px 0 #000; z-index: 5;
-  }
-
-  /* --- PAINEL DE DEBUG --- */
-  #debug-panel {
-    width: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    color: #00ff00; /* Verde Hacker */
-    font-family: monospace;
-    font-size: 10px;
-    padding: 5px;
-    margin-top: 5px;
-    border: 1px solid #333;
-    white-space: pre-wrap;
-    line-height: 1.2;
-  }
-</style>
-</head>
-
-<body>
-
-<div id="portrait-container">
-  <div id="char-circle"></div>
-  
-  <div id="bars-container">
-    <div id="hp-bar" class="bar-wrapper">
-      <div class="bar-fill" id="hp-fill"></div>
-      <div class="bar-text" id="hp-text">...</div>
-    </div>
-    <div id="sp-bar" class="bar-wrapper">
-      <div class="bar-fill" id="sp-fill"></div>
-      <div class="bar-text" id="sp-text">...</div>
-    </div>
-  </div>
-
-  <div id="debug-panel">Iniciando sistema de consenso...</div>
-</div>
-
-<script>
-// ================= CONFIGURAÇÕES =================
-const CONFIG = {
-    // Seu Link:
-    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?gid=1156002832&single=true&output=csv",
-    
-    // Termos de busca
-    termosVida: ["VidaMax", "Vida Max", "Vida", "HP", "PV"],
-    termosDanoVida: ["DanoVida", "Dano", "Ferimento"],
-    termosSan: ["SanidadeMax", "Sanidade", "ManaMax", "Mana", "PE"],
-    termosDanoSan: ["DanoSanidade", "DanoMana", "Gasto"],
-
-    // AJUSTE FINO DO ALGORITMO
-    BUFFER_SIZE: 5,        // Tamanho da memória (quantas leituras guardamos)
-    MIN_CONSENSO: 0.6,     // 60% dos votos necessários para mudar (3 em 5)
-    REFRESH_RATE: 800      // Velocidade de leitura (ms). 800ms é um bom equilíbrio.
-};
-
-function debug(msg) { document.getElementById("debug-panel").innerText = msg; }
-
-// CLASSE JUIZ DE VALOR (Baseada na sugestão da IA 2)
-class JuizDeValor {
-    constructor(nome, idTexto, idBarra) {
-        this.nome = nome;
-        this.elTexto = document.getElementById(idTexto);
-        this.elBarra = document.getElementById(idBarra);
-
-        this.valorAtual = null;
-        this.valorMax = null;
-
-        // O Buffer é a "Memória de Curto Prazo"
-        this.buffer = []; 
-    }
-
-    processar(novoAtual, novoMax) {
-        // 1. Adiciona o novo valor ao buffer (Urna de Votação)
-        this.buffer.push(novoAtual);
-        
-        // Se a urna encheu, tira o voto mais antigo
-        if (this.buffer.length > CONFIG.BUFFER_SIZE) {
-            this.buffer.shift();
-        }
-
-        // 2. Contagem de Votos (Frequência)
-        const contagem = {};
-        for (const v of this.buffer) {
-            contagem[v] = (contagem[v] || 0) + 1;
-        }
-
-        // 3. Quem está ganhando?
-        let vencedor = null;
-        let votosVencedor = 0;
-        
-        for (const valor in contagem) {
-            if (contagem[valor] > votosVencedor) {
-                votosVencedor = contagem[valor];
-                vencedor = Number(valor);
-            }
-        }
-
-        // 4. Calcular porcentagem de aprovação
-        const porcentagem = votosVencedor / this.buffer.length;
-        
-        // STATUS PARA O DEBUG
-        let status = `[${this.nome}] Buffer: [${this.buffer.join(', ')}]`;
-        
-        // 5. O Martelo do Juiz: Só muda se tiver maioria qualificada
-        const mudou = vencedor !== this.valorAtual;
-        const temMaioria = porcentagem >= CONFIG.MIN_CONSENSO;
-
-        if (mudou && temMaioria) {
-            this.valorAtual = vencedor;
-            this.valorMax = novoMax;
-            this.atualizarTela();
-            status += `\n>>> MUDANÇA ACEITA: ${vencedor} (${Math.round(porcentagem*100)}% votos)`;
-        } else if (mudou && !temMaioria) {
-            status += `\n... Aguardando consenso (Vencedor ${vencedor} tem só ${Math.round(porcentagem*100)}%)`;
-        } else {
-            status += `\nEstável em ${this.valorAtual}`;
-        }
-
-        return status;
-    }
-
-    atualizarTela() {
-        if (this.valorMax <= 0) return;
-        const pct = Math.max(0, Math.min(100, (this.valorAtual / this.valorMax) * 100));
-        this.elTexto.innerText = `${this.valorAtual}/${this.valorMax}`;
-        this.elBarra.style.width = pct + "%";
-    }
-}
-
-const juizHP = new JuizDeValor("VIDA", 'hp-text', 'hp-fill');
-const juizSP = new JuizDeValor("SAN", 'sp-text', 'sp-fill');
-
-function lerPlanilha(csv, termos) {
-  const linhas = csv.split('\n');
-  for (const linha of linhas) {
-    if (termos.some(t => linha.toLowerCase().includes(t.toLowerCase()))) {
-      const partes = linha.split(/[,;]/);
-      for (const p of partes) {
-        const n = Number(p.replace(/[^0-9.-]/g, '').trim());
-        if (!isNaN(n)) return n;
-      }
-    }
-  }
-  return null;
-}
-
-async function loop() {
-  try {
-    const res = await fetch(CONFIG.url + "&_=" + Date.now());
-    if (res.ok) {
-        const csv = await res.text();
-
-        // Leitura VIDA
-        const vMax = lerPlanilha(csv, CONFIG.termosVida);
-        let vDano = lerPlanilha(csv, CONFIG.termosDanoVida) || 0;
-        let vAtual = (vMax !== null) ? Math.max(0, vMax - vDano) : 0;
-
-        // Leitura SANIDADE
-        const sMax = lerPlanilha(csv, CONFIG.termosSan);
-        let sDano = lerPlanilha(csv, CONFIG.termosDanoSan) || 0;
-        let sAtual = (sMax !== null) ? Math.max(0, sMax - sDano) : 0;
-
-        // Processa
-        const msgHP = (vMax !== null) ? juizHP.processar(vAtual, vMax) : "VIDA: Aguardando...";
-        const msgSP = (sMax !== null) ? juizSP.processar(sAtual, sMax) : "SAN: Aguardando...";
-
-        debug(`${msgHP}\n${msgSP}`);
-    }
-  } catch (e) {
-      debug("Erro Conexão: " + e.message);
-  } finally {
-      // Loop um pouco mais rápido para encher o buffer logo
-      setTimeout(loop, CONFIG.REFRESH_RATE); 
-  }
-}
-
-loop();
-</script>
-</body>
-</html>
+    padding: 10px 10px 10px 60px;
