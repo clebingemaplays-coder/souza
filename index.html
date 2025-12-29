@@ -1,45 +1,174 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<title>Portrait RPG - Final</title>
-<style>
-  /* === CONFIGURAÇÃO DA IMAGEM === */
-  :root {
-    /* Troque o link aqui se a imagem sumir */
-    --char-image: url('https://i.imgur.com/8Q5gq0d.png'); 
-  }
+    <meta charset="UTF-8">
+    <title>Overlay RPG - V2</title>
+    <style>
+        /* --- ESTILO VISUAL (Igual ao anterior) --- */
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background-color: transparent; 
+            color: white; 
+            overflow: hidden;
+            margin: 0; padding: 10px;
+        }
 
-  body { margin: 0; padding: 0; background: transparent; overflow: hidden; font-family: 'Arial Black', Impact, sans-serif; }
+        .container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 10px;
+            width: fit-content;
+            border: 2px solid #555;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
 
-  /* --- ESTRUTURA VISUAL --- */
-  #portrait-container {
-    display: flex;
-    align-items: center;
-    width: 500px;
-    height: 140px; /* Altura ajustada para caber certinho */
-    position: relative;
-  }
+        .portrait {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid #b22222;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: #000;
+        }
 
-  #char-circle {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    border: 4px solid #1a1a1a;
-    background-image: var(--char-image);
-    background-size: cover;
-    background-position: center;
-    position: absolute;
-    left: 0;
-    z-index: 10;
-    box-shadow: 3px 0 10px rgba(0,0,0,0.6);
-  }
+        .portrait img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
 
-  #bars-container {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 6px; 
-    margin-left: 70px; 
-    width: 420px;
-    padding: 10px 10px 10px 60px;
+        .info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            width: 200px;
+        }
+
+        .name {
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        .bar-box {
+            position: relative;
+            background: #222;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid #000;
+            overflow: hidden;
+        }
+
+        .bar {
+            height: 100%;
+            transition: width 0.5s ease-in-out;
+        }
+
+        .hp-fill { background: linear-gradient(90deg, #8b0000, #ff3333); width: 100%; }
+        .mp-fill { background: linear-gradient(90deg, #00008b, #3333ff); width: 100%; }
+
+        .bar-text {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+            z-index: 2;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="portrait">
+            <img src="https://i.imgur.com/your-image.png" id="char-image" alt="Foto">
+        </div>
+        
+        <div class="info">
+            <div class="name" id="char-name">PERSONAGEM</div>
+            
+            <div class="bar-box">
+                <div class="bar-text">HP: <span id="hp-txt">0/0</span></div>
+                <div class="bar hp-fill" id="hp-bar"></div>
+            </div>
+
+            <div class="bar-box">
+                <div class="bar-text">MP: <span id="mp-txt">0/0</span></div>
+                <div class="bar mp-fill" id="mp-bar"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // ID DA SUA PLANILHA (O mesmo do link que você mandou antes)
+    const sheetID = '2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw';
+    const csvUrl = `https://docs.google.com/spreadsheets/d/e/${sheetID}/pub?output=csv`;
+
+    async function fetchSheetData() {
+        try {
+            const response = await fetch(csvUrl);
+            const data = await response.text();
+            
+            // Quebra o texto do CSV em linhas e colunas
+            const rows = data.split('\n').map(row => row.split(','));
+
+            // Variáveis temporárias para armazenar os valores encontrados
+            let vMax = 0, vDano = 0;
+            let mMax = 0, mGasto = 0;
+            let nomeEncontrado = "Personagem";
+
+            // PROCURA OS VALORES LINHA POR LINHA
+            rows.forEach((row) => {
+                if (row.length < 2) return; // Pula linhas vazias
+
+                // Pega a primeira célula (rótulo) e a segunda (valor)
+                // Removemos aspas e espaços extras para garantir que funcione
+                const label = row[0].replace(/"/g, '').trim().toLowerCase();
+                const value = parseInt(row[1].replace(/"/g, '').trim());
+
+                if (isNaN(value)) return; // Se não for número na segunda coluna, ignora
+
+                // Lógica de Identificação
+                if (label === 'vidamax') vMax = value;
+                if (label === 'dano') vDano = value;
+                if (label === 'mana') mMax = value;
+                if (label === 'gasto') mGasto = value;
+            });
+
+            // CÁLCULO FINAL (Matemática simples)
+            let hpAtual = vMax - vDano;
+            let mpAtual = mMax - mGasto;
+
+            // Se o dano for maior que a vida, a vida não fica negativa, fica 0
+            if (hpAtual < 0) hpAtual = 0;
+            if (mpAtual < 0) mpAtual = 0;
+
+            // Atualiza o Visual
+            updateBar('hp', hpAtual, vMax);
+            updateBar('mp', mpAtual, mMax);
+
+        } catch (error) {
+            console.error("Erro ao ler planilha:", error);
+        }
+    }
+
+    function updateBar(type, current, max) {
+        if(max <= 0) max = 1; // Evita erro de divisão por zero
+        const pct = Math.min(100, Math.max(0, (current / max) * 100));
+        
+        document.getElementById(`${type}-bar`).style.width = `${pct}%`;
+        document.getElementById(`${type}-txt`).innerText = `${current}/${max}`;
+    }
+
+    // Atualiza a cada 2 segundos para ficar bem responsivo
+    setInterval(fetchSheetData, 2000);
+    fetchSheetData();
+</script>
+
+</body>
+</html>
