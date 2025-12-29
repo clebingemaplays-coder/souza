@@ -2,31 +2,29 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Portrait RPG - Estável</title>
+<title>Portrait RPG - Anti-Ghost</title>
 <style>
-  /* CONFIGURAÇÃO VISUAL */
+  /* --- ESTILOS --- */
   body { 
-    margin: 0; 
-    padding: 0;
+    margin: 0; padding: 0;
     background: transparent; 
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-    color: white; 
-    overflow: hidden; 
+    color: white; overflow: hidden; 
   }
   
   #container {
     width: 320px;
     padding: 10px;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, 0.9);
     border: 2px solid #b00000;
     border-radius: 8px; 
-    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.8);
   }
 
   #vida-texto {
     text-align: center;
-    font-size: 20px;
-    font-weight: bold;
+    font-size: 22px;
+    font-weight: 800;
     margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -35,9 +33,9 @@
 
   #barra-bg {
     width: 100%;
-    height: 24px;
-    background: #2a2a2a;
-    border: 2px solid #111;
+    height: 26px;
+    background: #222;
+    border: 2px solid #000;
     border-radius: 4px;
     overflow: hidden;
     position: relative;
@@ -46,9 +44,9 @@
   #barra-vida {
     height: 100%;
     width: 100%;
-    background: linear-gradient(180deg, #ff4444 0%, #cc0000 100%);
-    box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
-    transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    background: linear-gradient(180deg, #ff3333 0%, #aa0000 100%);
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    transition: width 0.4s ease-out; /* Animação rápida */
   }
 </style>
 </head>
@@ -63,8 +61,10 @@
 </div>
 
 <script>
-// SEU LINK JÁ CONFIGURADO:
+// ======================================================
+// SEU LINK DA PLANILHA:
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?gid=1156002832&single=true&output=csv";
+// ======================================================
 
 function encontrarNumero(csv, listaDeNomes) {
   const linhas = csv.split('\n');
@@ -85,10 +85,12 @@ function encontrarNumero(csv, listaDeNomes) {
   return null;
 }
 
-// VARIÁVEIS DO SISTEMA DE ESTABILIDADE
-let naTelaVida = -1;      // O que está aparecendo agora
-let candidatoVida = -1;   // O novo valor que chegou
-let repeticoes = 0;       // Quantas vezes o novo valor se repetiu
+// VARIÁVEIS DE CONTROLE (ANTI-GHOST)
+let vidaNaTela = -1;     
+let vidaMaxNaTela = -1;
+let candidatoVida = -1;   // O numero novo que está tentando entrar
+let repeticoes = 0;       // Quantas vezes o numero novo apareceu seguido
+let timestampBloqueio = 0; // Tempo até quando as mudanças estão bloqueadas
 
 async function atualizarVida() {
   try {
@@ -101,48 +103,57 @@ async function atualizarVida() {
 
       if (vidaMax !== null) {
         if (dano === null) dano = 0;
-        
-        // Calcula a vida atual baseada na planilha
-        const vidaLida = Math.max(0, vidaMax - dano);
+        const vidaReal = Math.max(0, vidaMax - dano);
 
-        // --- LÓGICA DE PROTEÇÃO CONTRA ROLLBACK ---
+        // --- SISTEMA DE TRAVA DE SEGURANÇA ---
         
-        // Se a vida lida é DIFERENTE do que está na tela
-        if (vidaLida !== naTelaVida) {
-            
-            // Se essa vida lida é igual à "candidata" da vez anterior
-            if (vidaLida === candidatoVida) {
-                repeticoes++; // Confirmação +1
+        // 1. Estamos em "período de bloqueio"? (5 segundos após uma mudança)
+        if (Date.now() < timestampBloqueio) {
+            // Se sim, IGNORA qualquer valor que seja diferente do que já está na tela.
+            // Isso evita que o "fantasma" do valor antigo mude a barra.
+            if (vidaReal !== vidaNaTela) {
+                // Console log só pra saber que bloqueou o fantasma
+                // console.log("Bloqueando fantasma:", vidaReal);
+            }
+        } 
+        else {
+            // 2. Não estamos bloqueados. Verifica se precisa mudar.
+            if (vidaReal !== vidaNaTela || vidaMax !== vidaMaxNaTela) {
+                
+                // Exige confirmação dupla (precisa vir o mesmo valor 2x seguidas)
+                if (vidaReal === candidatoVida) {
+                    repeticoes++;
+                } else {
+                    candidatoVida = vidaReal;
+                    repeticoes = 1;
+                }
+
+                // Se confirmou 2 vezes, atualiza a tela e TRAVA
+                if (repeticoes >= 2) {
+                    const pct = (vidaReal / vidaMax) * 100;
+                    document.getElementById("vida-texto").innerText = `VIDA: ${vidaReal} / ${vidaMax}`;
+                    document.getElementById("barra-vida").style.width = pct + "%";
+                    
+                    vidaNaTela = vidaReal;
+                    vidaMaxNaTela = vidaMax;
+                    
+                    // ATIVA A TRAVA POR 5 SEGUNDOS
+                    // Durante 5s, o script vai ignorar qualquer valor antigo que o Google mandar
+                    timestampBloqueio = Date.now() + 5000; 
+                    repeticoes = 0;
+                }
             } else {
-                candidatoVida = vidaLida; // Novo candidato
-                repeticoes = 1; // Primeira vez que vemos ele
+                // Se o valor é igual ao da tela, reseta contadores
+                repeticoes = 0;
             }
-
-            // Só atualiza se o MESMO valor vier 2 vezes seguidas
-            if (repeticoes >= 2) {
-                const pct = (vidaLida / vidaMax) * 100;
-                
-                document.getElementById("vida-texto").innerText = `VIDA: ${vidaLida} / ${vidaMax}`;
-                document.getElementById("barra-vida").style.width = pct + "%";
-                
-                // Atualiza o valor oficial da tela
-                naTelaVida = vidaLida;
-                repeticoes = 0; 
-            }
-        } else {
-            // Se o valor lido for igual ao da tela, reseta contadores
-            repeticoes = 0;
-            candidatoVida = -1;
         }
       }
     }
   } catch (e) {
     console.error(e); 
   } finally {
-    // Tenta de novo a cada 1.5 segundos
-    // Isso significa que vai levar uns 3 segundos para atualizar na live,
-    // mas garante que não vai ficar piscando.
-    setTimeout(atualizarVida, 1500); 
+    // Tenta de novo a cada 1 segundo (mais rápido para responder, já que temos a trava)
+    setTimeout(atualizarVida, 1000); 
   }
 }
 
