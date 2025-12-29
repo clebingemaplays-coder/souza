@@ -53,28 +53,45 @@ body {
 const SHEET_URL =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaYb-7DLXqfMC4nqQIC5GawVzHTylxnSX7DPGhPKxmYvrWXuVdYGkTwtKHCqKC_iRPPUw/pub?output=csv";
 
+function num(v) {
+  if (!v) return 0;
+  return Number(
+    v.replace(/[^\d.,-]/g, "").replace(",", ".")
+  );
+}
+
 async function atualizarVida() {
   try {
-    const response = await fetch(SHEET_URL + "&_=" + Date.now());
-    const text = await response.text();
+    const res = await fetch(SHEET_URL + "&_=" + Date.now());
+    const text = await res.text();
 
-   const linhas = text.split("\n").map(l => l.split(";"));
+    const linhas = text.split("\n").map(l => l.split(";"));
 
-  const vidaMax = Number(linhas[9][1]); // B10:C10
-  const dano    = Number(linhas[9][3]); // D10:E10
-    
+    let vidaMax = 0;
+    let dano = 0;
+
+    for (const linha of linhas) {
+      for (const celula of linha) {
+        if (vidaMax === 0 && num(celula) > 0) {
+          vidaMax = num(celula);
+        } else if (vidaMax > 0 && dano === 0) {
+          dano = num(celula);
+        }
+      }
+    }
 
     const atual = Math.max(0, vidaMax - dano);
-    const porcentagem = (atual / vidaMax) * 100;
+    const pct = vidaMax ? (atual / vidaMax) * 100 : 0;
 
     document.getElementById("vida-texto").innerText =
       `Vida: ${atual} / ${vidaMax}`;
 
     document.getElementById("barra-vida").style.width =
-      porcentagem + "%";
+      pct + "%";
 
   } catch (e) {
-    console.error("Erro ao ler planilha", e);
+    document.getElementById("vida-texto").innerText = "Erro";
+    console.error(e);
   }
 }
 
@@ -83,6 +100,7 @@ atualizarVida();
 </script>
 </body>
 </html>
+
 
 
 
