@@ -2,61 +2,114 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Portrait RPG - Lista Negra</title>
+<title>Portrait RPG - Estilo Ordem</title>
 <style>
-  /* --- ESTILOS --- */
-  body { 
-    margin: 0; padding: 0;
-    background: transparent; 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-    color: white; overflow: hidden; 
-  }
-  
-  #container {
-    width: 320px;
-    padding: 10px;
-    background: rgba(0, 0, 0, 0.9);
-    border: 2px solid #b00000;
-    border-radius: 8px; 
-    box-shadow: 0 4px 8px rgba(0,0,0,0.8);
+  /* LINK DA FOTO DO SEU PERSONAGEM: */
+  /* Troque o link abaixo pelo da sua imagem */
+  :root {
+    --char-image: url('https://i.imgur.com/8Q5gq0d.png'); /* Exemplo */
   }
 
-  #vida-texto {
-    text-align: center;
-    font-size: 22px;
-    font-weight: 800;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    text-shadow: 2px 2px 0px #000;
-  }
+  body { margin: 0; padding: 0; background: transparent; overflow: hidden; font-family: 'Arial Black', 'Arial Bold', Impact, sans-serif; }
 
-  #barra-bg {
-    width: 100%;
-    height: 26px;
-    background: #222;
-    border: 2px solid #000;
-    border-radius: 4px;
-    overflow: hidden;
+  /* Container Principal */
+  #portrait-container {
+    display: flex;
+    align-items: center;
+    width: 500px;
+    height: 130px;
     position: relative;
   }
 
-  #barra-vida {
-    height: 100%;
+  /* Círculo do Personagem */
+  #char-circle {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 4px solid #1a1a1a;
+    background-image: var(--char-image);
+    background-size: cover;
+    background-position: center;
+    position: absolute;
+    left: 0;
+    z-index: 10; /* Fica na frente das barras */
+    box-shadow: 3px 0 10px rgba(0,0,0,0.5);
+  }
+
+  /* Container das Barras */
+  #bars-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px; /* Espaço entre as barras */
+    margin-left: 70px; /* Empurra para a direita do círculo */
+    width: 420px;
+    padding: 10px 10px 10px 60px; /* Espaço interno */
+    background: rgba(0,0,0,0.8); /* Fundo escuro atrás das barras */
+    border-radius: 0 10px 10px 0;
+    border: 2px solid #1a1a1a;
+    border-left: none; /* Remove a borda da esquerda que fica atrás do círculo */
+  }
+
+  /* Estilo Comum das Barras */
+  .bar-wrapper {
     width: 100%;
-    background: linear-gradient(180deg, #ff3333 0%, #aa0000 100%);
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-    transition: width 0.4s ease-out; 
+    height: 35px;
+    background: #222;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    border: 2px solid #000;
+  }
+
+  .bar-fill {
+    height: 100%;
+    width: 100%; /* Começa cheio */
+    position: absolute;
+    top: 0; left: 0;
+    transition: width 0.5s ease-out;
+  }
+
+  /* Cores das Barras */
+  #hp-bar .bar-fill { background: linear-gradient(90deg, #990000, #ff0000); }
+  #sp-bar .bar-fill { background: linear-gradient(90deg, #000099, #0000ff); }
+
+  /* Texto sobre as Barras */
+  .bar-text {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 22px;
+    font-weight: 900;
+    /* Contorno preto na fonte */
+    text-shadow: 
+       2px  2px 0 #000, -2px  2px 0 #000, 
+      -2px -2px 0 #000,  2px -2px 0 #000,
+       0px  3px 3px rgba(0,0,0,0.8);
+    z-index: 5;
   }
 </style>
 </head>
 
 <body>
 
-<div id="container">
-  <div id="vida-texto">Carregando...</div>
-  <div id="barra-bg">
-    <div id="barra-vida"></div>
+<div id="portrait-container">
+  <div id="char-circle"></div>
+  
+  <div id="bars-container">
+    <div id="hp-bar" class="bar-wrapper">
+      <div class="bar-fill" id="hp-fill"></div>
+      <div class="bar-text" id="hp-text">--/--</div>
+    </div>
+    
+    <div id="sp-bar" class="bar-wrapper">
+      <div class="bar-fill" id="sp-fill"></div>
+      <div class="bar-text" id="sp-text">--/--</div>
+    </div>
   </div>
 </div>
 
@@ -67,7 +120,6 @@ const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTANyBjzDtkaY
 function encontrarNumero(csv, listaDeNomes) {
   const linhas = csv.split('\n');
   const nomes = Array.isArray(listaDeNomes) ? listaDeNomes : [listaDeNomes];
-
   for (const linha of linhas) {
     const linhaLow = linha.toLowerCase();
     if (nomes.some(nome => linhaLow.includes(nome.toLowerCase()))) {
@@ -83,63 +135,67 @@ function encontrarNumero(csv, listaDeNomes) {
   return null;
 }
 
-// --- VARIÁVEIS DE CONTROLE ---
-let vidaNaTela = -1;      // O valor que estamos mostrando agora
-let valorIgnorado = -1;   // O valor antigo ("fantasma") que não queremos aceitar de volta
-let tempoIgnorar = 0;     // Até quando vamos ignorar o valor antigo
+// --- SISTEMA DE LISTA NEGRA (ANTI-ROLLBACK) PARA 2 BARRAS ---
+const estado = {
+  hp: { atual: -1, max: -1, ignorado: -1, tempoIgnorar: 0 },
+  sp: { atual: -1, max: -1, ignorado: -1, tempoIgnorar: 0 }
+};
 
-async function atualizarVida() {
-  try {
-    const res = await fetch(SHEET_URL + "&_=" + Date.now());
+function atualizarBarra(tipo, valorAtual, valorMax) {
+  const s = estado[tipo]; // Pega o estado (hp ou sp)
+  
+  // Se o valor mudou e não é um fantasma ignorado
+  if (valorAtual !== s.atual) {
+    const ehFantasma = (valorAtual === s.ignorado && Date.now() < s.tempoIgnorar);
     
-    if (res.ok) {
-      const csv = await res.text();
-      const vidaMax = encontrarNumero(csv, ["VidaMax", "Vida Max", "Vida", "HP", "Total", "Maximo"]);
-      let dano = encontrarNumero(csv, ["Dano", "Ferimento", "Machucado", "Atual"]);
-
-      if (vidaMax !== null) {
-        if (dano === null) dano = 0;
+    if (!ehFantasma) {
+        // Atualiza a tela
+        const pct = (valorAtual / valorMax) * 100;
+        document.getElementById(`${tipo}-text`).innerText = `${valorAtual}/${valorMax}`;
+        document.getElementById(`${tipo}-fill`).style.width = pct + "%";
         
-        // Calcula a vida que veio do Google
-        const vidaLida = Math.max(0, vidaMax - dano);
-
-        // --- LÓGICA DA LISTA NEGRA ---
-        
-        // 1. Se a vida lida for diferente do que está na tela
-        if (vidaLida !== vidaNaTela) {
-            
-            // Verifica se esse valor está na lista negra (é um fantasma?)
-            const ehFantasma = (vidaLida === valorIgnorado && Date.now() < tempoIgnorar);
-
-            if (!ehFantasma) {
-                // Se NÃO for fantasma, atualiza a tela AGORA!
-                const pct = (vidaLida / vidaMax) * 100;
-                document.getElementById("vida-texto").innerText = `VIDA: ${vidaLida} / ${vidaMax}`;
-                document.getElementById("barra-vida").style.width = pct + "%";
-                
-                // Coloca o valor antigo na lista negra por 8 segundos
-                valorIgnorado = vidaNaTela; 
-                tempoIgnorar = Date.now() + 8000;
-
-                // Atualiza o valor oficial
-                vidaNaTela = vidaLida;
-                
-                console.log(`Atualizado para ${vidaLida}. Bloqueando ${valorIgnorado} por 8s.`);
-            } else {
-                console.log(`Ignorando rollback para ${vidaLida}`);
-            }
-        }
-      }
+        // Adiciona o valor antigo na lista negra por 8s
+        s.ignorado = s.atual;
+        s.tempoIgnorar = Date.now() + 8000;
+        s.atual = valorAtual;
+        s.max = valorMax;
     }
-  } catch (e) {
-    console.error(e); 
-  } finally {
-    // Verifica a cada 1 segundo (rápido)
-    setTimeout(atualizarVida, 1000); 
+  } else if (valorMax !== s.max) {
+      // Se só a vida máxima mudou (raro, mas acontece)
+      const pct = (valorAtual / valorMax) * 100;
+      document.getElementById(`${tipo}-text`).innerText = `${valorAtual}/${valorMax}`;
+      document.getElementById(`${tipo}-fill`).style.width = pct + "%";
+      s.max = valorMax;
   }
 }
 
-atualizarVida();
+async function loopPrincipal() {
+  try {
+    const res = await fetch(SHEET_URL + "&_=" + Date.now());
+    if (res.ok) {
+      const csv = await res.text();
+
+      // --- BUSCA VIDA ---
+      const vidaMax = encontrarNumero(csv, ["VidaMax", "Vida Max", "Vida", "HP"]);
+      let dano = encontrarNumero(csv, ["DanoVida", "Dano", "Ferimento"]);
+      if (dano === null) dano = 0;
+      if (vidaMax !== null) {
+          atualizarBarra('hp', Math.max(0, vidaMax - dano), vidaMax);
+      }
+
+      // --- BUSCA SANIDADE/PE ---
+      const sanMax = encontrarNumero(csv, ["SanidadeMax", "Sanidade", "ManaMax", "Mana", "PE", "Pontos"]);
+      let danoSan = encontrarNumero(csv, ["DanoSanidade", "DanoMana", "Gasto"]);
+      if (danoSan === null) danoSan = 0;
+      if (sanMax !== null) {
+          atualizarBarra('sp', Math.max(0, sanMax - danoSan), sanMax);
+      }
+    }
+  } catch (e) { console.error(e); } 
+  finally { setTimeout(loopPrincipal, 1000); } // Repete a cada 1s
+}
+
+loopPrincipal();
 </script>
 </body>
 </html>
