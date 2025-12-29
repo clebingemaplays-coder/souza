@@ -117,7 +117,7 @@ async function atualizarVida() {
     log(`CSV Lido: ${csv.substring(0, 30)}...`);
 
     const vidaMax = encontrarNumero(csv, "VidaMax");
-    const dano = encontrarNumero(csv, "Dano");
+    const dano = encontrarNumero(csv, "dano");
 
     if (vidaMax === null) throw new Error("Não achei 'VidaMax' na planilha");
     // Se não achar dano, assume 0
@@ -149,5 +149,6 @@ atualizarVida();
 </script>
 </body>
 </html>
+
 
 
